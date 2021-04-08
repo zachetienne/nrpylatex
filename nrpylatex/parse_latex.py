@@ -1167,6 +1167,7 @@ class Parser:
                             for i, (idx, pos) in enumerate(Tensor.indexing(function_LHS)):
                                 if pos != suffix[i]:
                                     indexing_RHS[i] = next(x for x in alphabet if x not in indexing_LHS)
+                                    if len(str(idx)) > 1: idx = '\\' + str(idx)
                                     if pos == 'U':
                                         latex += '\\text{%s}^{%s %s} ' % (metric, idx, indexing_RHS[i])
                                     else:

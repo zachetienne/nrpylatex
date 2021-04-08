@@ -26,9 +26,9 @@ If you are using a different CAS, reference the SymPy [documentation]((https://d
 
 ## Installation
 
-To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run the following command
+To install NRPyLaTeX, run the following command
 
-    $ pip install -i https://test.pypi.org/simple/ nrpylatex
+    $ pip install nrpylatex
 
 ## Interactive Tutorial (MyBinder)
 
@@ -36,7 +36,38 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
 
 ## Documentation and Usage
 
-### PARSE MACRO
+### Simple Example ([Kretschmann Scalar](https://en.wikipedia.org/wiki/Kretschmann_scalar))
+
+        >>> from nrpylatex import parse
+        >>> from sympy import simplify
+        >>> parse(r"""
+        ...     % keydef basis [t, r, \theta, \phi]
+        ...     % vardef -zero 'gDD' (4D)
+        ...     % vardef -const 'G', 'M'
+        ...
+        ...     \begin{align}
+        ...         %% define Schwarzschild metric
+        ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
+        ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
+        ...         g_{\theta \theta} &= r^{{2}} \\
+        ...         g_{\phi \phi} &= r^{{2}} \sin^2\theta
+        ...     \end{align}
+        ...     % assign -metric 'gDD'
+        ...
+        ...     \begin{align}
+        ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
+        ...             + \Gamma^\alpha_{\mu \gamma} \Gamma^\gamma_{\beta \nu} - \Gamma^\alpha_{\nu \sigma} \Gamma^\sigma_{\beta \mu} \\
+        ...         K &= R^{\alpha \beta \mu \nu} R_{\alpha \beta \mu \nu}
+        ...     \end{align}
+        ... """);
+        >>> print(simplify(K))
+        48*G**2*M**2/r**6
+        
+### Indexing Ambiguity
+
+If you attempt to parse `v^2`, that could be converted into `v**2` (a scalar `v` squared) or `vU[2]` (the third component of a vector `vU`). Furthermore, if you already defined `v` or `vU` using `vardef`, we still cannot distinguish between `v**2` and `vU[2]` since both `v` and `vU` can exist in the namespace simultaneously. Therefore, to differentiate between them, we assume vector indexing and require that you use the notation `v^{{2}}` otherwise. To mitigate the task of changing every `v^2` to `v^{{2}}`, we recommend using `srepl "v^{<1>}" -> "v^<1>", "v^<1>" -> "v^{{<1>}}"`. Likewise, if you need to parse `v_2` into a symbol, we recommend using `srepl "v_{<1>}" -> "v_<1>", "v_<1>" -> "\text{v_<1>}"`. We should remark that using a `text` command will build a compound symbol. Finally, to resolve a more complex indexing ambiguity, reference the `srepl` documentation below or visit the interactive tutorial (see above).
+
+#### PARSE MACRO
     parse - parse an equation without rendering
 
     USAGE
@@ -45,12 +76,17 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
     EQUATION
         syntax: (tensorial) LaTeX equation
 
-### SREPL MACRO
+#### SREPL MACRO
     srepl - syntactic string replacement
 
     USAGE
-        srepl RULE, ...
-    
+        srepl [OPTION] RULE, ...
+
+    OPTION
+        persist
+            apply rule(s) to every subsequent input of the parse() function
+            remark: internally generated LaTeX included
+
     RULE
         syntax: "..." -> "..."
         remark (1): string A and string B are considered equal
@@ -59,7 +95,7 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
             single token capture group <#>
             continuous capture group <#..>
 
-### VARDEF MACRO
+#### VARDEF MACRO
     vardef - define a variable
 
     USAGE
@@ -104,7 +140,7 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
         syntax: variable dimension inside of (...)
         default: 3D
 
-### KEYDEF MACRO
+#### KEYDEF MACRO
     vardef - define a keyword
 
     USAGE
@@ -124,7 +160,7 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
         syntax: alphabetic string inside of '...'
         example(s): 'vU', 'gDD', 'alpha'
 
-### ASSIGN MACRO
+#### ASSIGN MACRO
     assign - assign property(ies) to a variable
 
     USAGE
@@ -152,7 +188,7 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
         alphabetic string inside of '...'
         example(s): 'vU', 'gDD', 'alpha'
 
-### IGNORE MACRO
+#### IGNORE MACRO
     ignore - remove a substring; equivalent to srepl "..." -> "" (empty replacement)
 
     USAGE
