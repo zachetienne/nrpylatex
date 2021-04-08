@@ -1,1 +1,1 @@
-from .parse_latex import parse, parse_latex
+from nrpylatex.parse_latex import parse

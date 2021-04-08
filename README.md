@@ -29,7 +29,7 @@ To install NRPyLaTeX from [PyPI](https://test.pypi.org/project/nrpylatex/), run 
 
     $ pip install -i https://test.pypi.org/simple/ nrpylatex
 
-## Interactive Tutorial (Jupyter Notebook)
+## Interactive Tutorial (MyBinder)
 
 [Getting Started](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Parser_Interface.ipynb) | [Guided Example (Cartesian BSSN)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
 
