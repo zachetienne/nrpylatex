@@ -1,4 +1,6 @@
 # NRPyLaTeX
+
+[![pypi version](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
 [![Build status](https://www.travis-ci.com/zachetienne/nrpylatex.svg?branch=main)](https://www.travis-ci.com/github/zachetienne/nrpylatex)
 
 [NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for Numerical Relativity
@@ -26,7 +28,7 @@ If you are using a different CAS, reference the SymPy [documentation]((https://d
 
 ## Installation
 
-To install NRPyLaTeX, run the following command
+To install NRPyLaTeX using [PyPI](https://pypi.org/project/nrpylatex/), run the following command
 
     $ pip install nrpylatex
 
@@ -65,7 +67,7 @@ To install NRPyLaTeX, run the following command
         
 ### Indexing Ambiguity
 
-If you attempt to parse `v^2`, that could be converted into `v**2` (a scalar `v` squared) or `vU[2]` (the third component of a vector `vU`). Furthermore, if you already defined `v` or `vU` using `vardef`, we still cannot distinguish between `v**2` and `vU[2]` since both `v` and `vU` can exist in the namespace simultaneously. Therefore, to differentiate between them, we assume vector indexing and require that you use the notation `v^{{2}}` otherwise. To mitigate the task of changing every `v^2` to `v^{{2}}`, we recommend using `srepl "v^{<1>}" -> "v^<1>", "v^<1>" -> "v^{{<1>}}"`. Likewise, if you need to parse `v_2` into a symbol, we recommend using `srepl "v_{<1>}" -> "v_<1>", "v_<1>" -> "\text{v_<1>}"`. We should remark that using a `text` command will build a compound symbol. Finally, to resolve a more complex indexing ambiguity, reference the `srepl` documentation below or visit the interactive tutorial (see above).
+If you attempt to parse `v^2`, that could be converted into `v**2` (a scalar `v` squared) or `vU[2]` (the third component of a vector `vU`). Furthermore, if you already defined `v` or `vU` using `vardef`, we still cannot distinguish between `v**2` and `vU[2]` since both `v` and `vU` can exist in the namespace simultaneously. Therefore, to differentiate between them, we assume vector indexing and require that you use the notation `v^{{2}}` otherwise. To mitigate the task of changing every `v^2` to `v^{{2}}`, we recommend using `srepl "v^{<1>}" -> "v^<1>", "v^<1>" -> "v^{{<1>}}"`. Likewise, if you need to parse `v_2` into a symbol, we recommend using `srepl "v_{<1>}" -> "v_<1>", "v_<1>" -> "\text{v_<1>}"`. We should mention that you can build a compound symbol using the `text` command. To resolve a more complex indexing ambiguity, read the `srepl` documentation below or visit the interactive tutorial (see above).
 
 #### PARSE MACRO
     parse - parse an equation without rendering
