@@ -26,10 +26,10 @@ add_doctest () {
   echo -e Done. "\n"
 }
 
-add_doctest nrpylatex.functional.py
-add_doctest nrpylatex.symtree.py
-add_doctest nrpylatex.indexed_symbol.py
-add_doctest nrpylatex.assert_equal.py
+add_doctest nrpylatex/functional.py
+add_doctest nrpylatex/symtree.py
+add_doctest nrpylatex/indexed_symbol.py
+add_doctest nrpylatex/assert_equal.py
 
 add_unittest () {
   file=$1
