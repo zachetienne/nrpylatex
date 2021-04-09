@@ -2,8 +2,9 @@
 
 [![pypi version](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
 [![Build status](https://www.travis-ci.com/zachetienne/nrpylatex.svg?branch=main)](https://www.travis-ci.com/github/zachetienne/nrpylatex)
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-SymPy_LaTeX_Interface.ipynb)
 
-[NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for Numerical Relativity
+[NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for General Relativity
 
 - automatic expansion of
   - [Einstein summation convention](https://en.wikipedia.org/wiki/Einstein_notation)
@@ -34,7 +35,7 @@ To install NRPyLaTeX using [PyPI](https://pypi.org/project/nrpylatex/), run the 
 
 ## &#167; Interactive Tutorial (MyBinder)
 
-[Getting Started](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Parser_Interface.ipynb) | [Guided Example (Cartesian BSSN)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
+[Getting Started](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-SymPy_LaTeX_Interface.ipynb) | [Guided Example (Cartesian BSSN)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
 
 ## &#167; Documentation and Usage
 
