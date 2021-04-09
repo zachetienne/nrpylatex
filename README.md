@@ -44,20 +44,18 @@ To install NRPyLaTeX using [PyPI](https://pypi.org/project/nrpylatex/), run the 
     >>> from nrpylatex import parse
     >>> from sympy import simplify
     >>> parse(r"""
-    ...     % keydef basis [t, r, \theta, \phi]
-    ...     % vardef -zero 'gDD' (4D)
-    ...     % vardef -const 'G', 'M'
-    ...
     ...     \begin{align}
+    ...         % keydef basis [t, r, \theta, \phi]
+    ...         % vardef -zero 'gDD' (4D)
+    ...         % vardef -const 'G', 'M'
+    ...
     ...         %% define Schwarzschild metric
     ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
     ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
     ...         g_{\theta \theta} &= r^{{2}} \\
-    ...         g_{\phi \phi} &= r^{{2}} \sin^2\theta
-    ...     \end{align}
-    ...     % assign -metric 'gDD'
+    ...         g_{\phi \phi} &= r^{{2}} \sin^2\theta \\
+    ...         % assign -metric 'gDD'
     ...
-    ...     \begin{align}
     ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
     ...             + \Gamma^\alpha_{\mu \gamma} \Gamma^\gamma_{\beta \nu} - \Gamma^\alpha_{\nu \sigma} \Gamma^\sigma_{\beta \mu} \\
     ...         K &= R^{\alpha \beta \mu \nu} R_{\alpha \beta \mu \nu}

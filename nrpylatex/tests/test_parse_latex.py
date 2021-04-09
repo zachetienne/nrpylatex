@@ -12,7 +12,7 @@ class TestParser(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        Parser.ignore_override()
+        ignore_override(True)
 
     def test_expression_1(self):
         expr = r'-(\frac{2}{3} + 2\sqrt[5]{x + 3})'
@@ -58,7 +58,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_expression_5(self):
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r"""
             % vardef -diff_type=dD -metric 'gDD' (4D)
             % vardef -diff_type=dD 'vU' (4D)
@@ -93,7 +93,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_srepl_macro(self):
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r"""
             % srepl -persist "<1>'" -> "\text{<1>prime}"
             % srepl -persist "\text{<1..>}_<2>" -> "\text{(<1..>)<2>}"
@@ -106,7 +106,7 @@ class TestParser(unittest.TestCase):
             str(parse_expr(expr)),
             "x_n**4 + xprime_n*exp(x_n*y_n**2)"
         )
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r""" % srepl -persist "<1>'^{<2..>}" -> "\text{<1>prime}" """)
         expr = r"v'^{label}"
         self.assertEqual(
@@ -115,7 +115,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_1(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -diff_type=dD 'vU' (2D), 'wU' (2D)
@@ -129,7 +129,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_2(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -const 'w'
@@ -144,7 +144,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_3(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -diff_type=dD -metric 'gDD' (4D)
@@ -156,7 +156,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_4(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % keydef basis [x, y]
@@ -175,7 +175,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_5(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % keydef basis [x, y]
@@ -194,7 +194,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_6(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                     % vardef 'vD' (2D), 'uD' (2D), 'wD' (2D)
@@ -208,7 +208,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_7(self):
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r"""
             % keydef basis [\theta, \phi]
             % vardef -zero 'gDD' (2D)
@@ -248,7 +248,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_8(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -metric 'gDD' (4D)
@@ -261,7 +261,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_9(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef 'TUU' (3D)
@@ -276,7 +276,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_10(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -metric 'gDD'
@@ -287,7 +287,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_1(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef 'hUD' (4D)
@@ -300,7 +300,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_2(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -metric 'gUU' (3D)
@@ -314,7 +314,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_3(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef 'vU' (3D), 'wU' (3D)
@@ -327,7 +327,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_4(self):
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
@@ -337,7 +337,7 @@ class TestParser(unittest.TestCase):
             """)),
             {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
@@ -347,7 +347,7 @@ class TestParser(unittest.TestCase):
             """)),
             {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
-        Parser.clear_namespace()
+        delete_namespace()
         self.assertEqual(
             set(parse(r"""
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
@@ -359,7 +359,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_5_1(self):
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r"""
             % keydef basis [t, r, \theta, \phi]
             % vardef -zero 'gDD' (4D)
@@ -392,8 +392,6 @@ class TestParser(unittest.TestCase):
         parse(r"""
             \begin{align}
                 R^\alpha{}_{\beta\mu\nu} &= \partial_\mu \Gamma^\alpha_{\beta\nu} - \partial_\nu \Gamma^\alpha_{\beta\mu} + \Gamma^\alpha_{\mu\gamma}\Gamma^\gamma_{\beta\nu} - \Gamma^\alpha_{\nu\sigma}\Gamma^\sigma_{\beta\mu} \\
-                R^{\alpha\beta\mu\nu} &= g^{\beta a} g^{\mu b} g^{\nu c} R^\alpha_{a b c} \\
-                R_{\alpha\beta\mu\nu} &= g_{\alpha a} R^a_{\beta\mu\nu} \\
                 K &= R^{\alpha\beta\mu\nu} R_{\alpha\beta\mu\nu} \\
                 R_{\beta\nu} &= R^\alpha_{\beta\alpha\nu} \\
                 R &= g^{\beta\nu} R_{\beta\nu} \\
@@ -456,7 +454,6 @@ class TestParser(unittest.TestCase):
     def test_example_6_2(self):
         parse(r"""
             \begin{align}
-                K^{ij} &= \gamma^{ik} \gamma^{jl} K_{kl} \\
                 R_{ij} &= \partial_k \Gamma^k_{ij} - \partial_j \Gamma^k_{ik}
                     + \Gamma^k_{ij}\Gamma^l_{kl} - \Gamma^l_{ik}\Gamma^k_{lj} \\
                 R &= \gamma^{ij} R_{ij} \\
@@ -471,7 +468,7 @@ class TestParser(unittest.TestCase):
 
     @staticmethod
     def test_metric_symmetry():
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r"""
             % vardef -zero 'gDD'
             g_{1 0} = 1 \\
@@ -480,7 +477,7 @@ class TestParser(unittest.TestCase):
         """)
         assert_equal(gDD[0][1], 1, suppress_message=True)
         assert_equal(gDD[0][2], 2, suppress_message=True)
-        Parser.clear_namespace()
+        delete_namespace()
         parse(r"""
             % vardef -zero 'gDD'
             g_{0 1} = 1 \\
@@ -493,7 +490,7 @@ class TestParser(unittest.TestCase):
     @staticmethod
     def test_metric_inverse():
         for DIM in range(2, 5):
-            Parser.clear_namespace()
+            delete_namespace()
             parse(r"""
                 % vardef -metric 'gDD' ({DIM}D)
                 \Delta^a_c = g^{{ab}} g_{{bc}}
@@ -503,7 +500,7 @@ class TestParser(unittest.TestCase):
                     value = 1 if i == j else 0
                     assert_equal(DeltaUD[i][j], value, suppress_message=True)
         for DIM in range(2, 5):
-            Parser.clear_namespace()
+            delete_namespace()
             parse(r"""
                 % vardef -metric 'gUU' ({DIM}D)
                 \Delta^a_c = g^{{ab}} g_{{bc}}

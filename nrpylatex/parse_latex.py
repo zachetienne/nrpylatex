@@ -1,4 +1,4 @@
-""" Convert LaTeX Sentence to SymPy Expression """
+""" NRPyLaTeX: Convert LaTeX Sentence to SymPy Expression """
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
@@ -151,44 +151,43 @@ class Parser:
     """ LaTeX Parser
 
         The following class will parse a tokenized LaTeX sentence.
-
-        LaTeX Extended BNF Grammar:
-        <LATEX>         -> ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) }*
-        <ALIGN>         -> <OPENING> ( '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | <ASSIGNMENT> ) }* <CLOSING>
-            <MACRO>     -> <PARSE> | <SREPL> | <VARDEF> | <KEYDEF> | <ASSIGN> | <IGNORE>
-            <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
-            <SREPL>     -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
-            <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> { ',' <VARIABLE> }* [ '(' <DIMENSION> ')' ]
-            <KEYDEF>    -> <KEYDEF_MACRO> <BASIS_KWRD> <BASIS> | <INDEX_KWRD> <INDEX>
-            <ASSIGN>    -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
-            <IGNORE>    -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
-            <OPTION>    -> <CONSTANT> | <KRONECKER> | <METRIC> [ '=' <VARIABLE> ] | <WEIGHT> '=' <NUMBER>
-                            | <DIFF_TYPE> '=' <DIFF_OPT> | <SYMMETRY> '=' <SYM_OPT>
-            <BASIS>     -> <BASIS_KWRD> ( '[' <LETTER> { ',' <LETTER> }* ']' )
-            <INDEX>     -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '(' <DIMENSION> ')'
-        <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION>
-        <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
-        <TERM>          -> <FACTOR> { [ '/' ] <FACTOR> }*
-        <FACTOR>        -> <BASE> { '^' <EXPONENT> }*
-        <BASE>          -> [ '-' ] ( <NUMBER> | <COMMAND> | <OPERATOR> | <SUBEXPR> )
-        <EXPONENT>      -> <BASE> | '{' <EXPRESSION> '}' | '{' '{' <EXPRESSION> '}' '}'
-        <SUBEXPR>       -> '(' <EXPRESSION> ')' | '[' <EXPRESSION> ']' | '\' '{' <EXPRESSION> '\' '}'
-        <COMMAND>       -> <FUNC> | <FRAC> | <SQRT> | <NLOG> | <TRIG>
-        <FUNC>          -> <FUNC_CMD> <SUBEXPR>
-        <FRAC>          -> <FRAC_CMD> '{' <EXPRESSION> '}' '{' <EXPRESSION> '}'
-        <SQRT>          -> <SQRT_CMD> [ '[' <INTEGER> ']' ] '{' <EXPRESSION> '}'
-        <NLOG>          -> <NLOG_CMD> [ '_' ( <NUMBER> | '{' <NUMBER> '}' ) ] ( <NUMBER> | <TENSOR> | <SUBEXPR> )
-        <TRIG>          -> <TRIG_CMD> [ '^' ( <NUMBER> | '{' <NUMBER> '}' ) ] ( <NUMBER> | <TENSOR> | <SUBEXPR> )
-        <OPERATOR>      -> [ <VPHANTOM> '{' <DIFF_OPT> '}' ] ( <PARDRV> | <COVDRV> | <LIEDRV> | <TENSOR> )
-        <PARDRV>        -> <PAR_SYM> [ '^' <INTEGER> ] '_' <LETTER> ( <OPERATOR> | <SUBEXPR> )
-        <COVDRV>        -> ( <COV_SYM> | <DIACRITIC> '{' <COV_SYM> '}' ) ( '^' | '_' ) <LETTER> ( <OPERATOR> | <SUBEXPR> )
-        <LIEDRV>        -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
-        <TENSOR>        -> <SYMBOL> [ ( '_' <LOWER_INDEX> ) | ( '^' <UPPER_INDEX> [ '_' <LOWER_INDEX> ] ) ]
-        <SYMBOL>        -> <LETTER> | <DIACRITIC> '{' <SYMBOL> '}' | <TEXT_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}'
-        <LOWER_INDEX>   -> <LETTER> | <INTEGER> | '{' { <LETTER> | <INTEGER> }* [ ( ',' | ';' ) { <LETTER> | <INTEGER> }+ ] '}'
-        <UPPER_INDEX>   -> <LETTER> | <INTEGER> | '{' { <LETTER> | <INTEGER> }* '}'
-        <NUMBER>        -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
     """
+        # LaTeX Extended BNF Grammar:
+        # <LATEX>         -> ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) }*
+        # <ALIGN>         -> <OPENING> ( '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | <ASSIGNMENT> ) }* <CLOSING>
+        #     <MACRO>     -> <PARSE> | <SREPL> | <VARDEF> | <KEYDEF> | <ASSIGN> | <IGNORE>
+        #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
+        #     <SREPL>     -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
+        #     <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> { ',' <VARIABLE> }* [ '(' <DIMENSION> ')' ]
+        #     <KEYDEF>    -> <KEYDEF_MACRO> <BASIS_KWRD> <BASIS> | <INDEX_KWRD> <INDEX>
+        #     <ASSIGN>    -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
+        #     <IGNORE>    -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
+        #     <OPTION>    -> <CONSTANT> | <KRONECKER> | <METRIC> [ '=' <VARIABLE> ] | <WEIGHT> '=' <NUMBER>
+        #                     | <DIFF_TYPE> '=' <DIFF_OPT> | <SYMMETRY> '=' <SYM_OPT>
+        #     <BASIS>     -> <BASIS_KWRD> ( '[' <LETTER> { ',' <LETTER> }* ']' )
+        #     <INDEX>     -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '(' <DIMENSION> ')'
+        # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION>
+        # <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
+        # <TERM>          -> <FACTOR> { [ '/' ] <FACTOR> }*
+        # <FACTOR>        -> <BASE> { '^' <EXPONENT> }*
+        # <BASE>          -> [ '-' ] ( <NUMBER> | <COMMAND> | <OPERATOR> | <SUBEXPR> )
+        # <EXPONENT>      -> <BASE> | '{' <EXPRESSION> '}' | '{' '{' <EXPRESSION> '}' '}'
+        # <SUBEXPR>       -> '(' <EXPRESSION> ')' | '[' <EXPRESSION> ']' | '\' '{' <EXPRESSION> '\' '}'
+        # <COMMAND>       -> <FUNC> | <FRAC> | <SQRT> | <NLOG> | <TRIG>
+        # <FUNC>          -> <FUNC_CMD> <SUBEXPR>
+        # <FRAC>          -> <FRAC_CMD> '{' <EXPRESSION> '}' '{' <EXPRESSION> '}'
+        # <SQRT>          -> <SQRT_CMD> [ '[' <INTEGER> ']' ] '{' <EXPRESSION> '}'
+        # <NLOG>          -> <NLOG_CMD> [ '_' ( <NUMBER> | '{' <NUMBER> '}' ) ] ( <NUMBER> | <TENSOR> | <SUBEXPR> )
+        # <TRIG>          -> <TRIG_CMD> [ '^' ( <NUMBER> | '{' <NUMBER> '}' ) ] ( <NUMBER> | <TENSOR> | <SUBEXPR> )
+        # <OPERATOR>      -> [ <VPHANTOM> '{' <DIFF_OPT> '}' ] ( <PARDRV> | <COVDRV> | <LIEDRV> | <TENSOR> )
+        # <PARDRV>        -> <PAR_SYM> [ '^' <INTEGER> ] '_' <LETTER> ( <OPERATOR> | <SUBEXPR> )
+        # <COVDRV>        -> ( <COV_SYM> | <DIACRITIC> '{' <COV_SYM> '}' ) ( '^' | '_' ) <LETTER> ( <OPERATOR> | <SUBEXPR> )
+        # <LIEDRV>        -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
+        # <TENSOR>        -> <SYMBOL> [ ( '_' <LOWER_INDEX> ) | ( '^' <UPPER_INDEX> [ '_' <LOWER_INDEX> ] ) ]
+        # <SYMBOL>        -> <LETTER> | <DIACRITIC> '{' <SYMBOL> '}' | <TEXT_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}'
+        # <LOWER_INDEX>   -> <LETTER> | <INTEGER> | '{' { <LETTER> | <INTEGER> }* [ ( ',' | ';' ) { <LETTER> | <INTEGER> }+ ] '}'
+        # <UPPER_INDEX>   -> <LETTER> | <INTEGER> | '{' { <LETTER> | <INTEGER> }* '}'
+        # <NUMBER>        -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
 
     _namespace, _property = {}, {}
     continue_parsing = True
@@ -1692,14 +1691,6 @@ class Parser:
         return LHS + ' = ' + RHS
 
     @staticmethod
-    def ignore_override():
-        warnings.filterwarnings('ignore', category=OverrideWarning)
-
-    @staticmethod
-    def clear_namespace():
-        Parser._namespace, Parser._property = {}, {}
-
-    @staticmethod
     def _strip(symbol):
         return symbol[1:] if symbol[0] == '\\' else symbol
 
@@ -1871,6 +1862,24 @@ class Tensor:
 
     __str__ = __repr__
 
+def ignore_override(option):
+    """ Ignore Override Warning
+
+        :arg: boolean value
+    """
+    action = 'ignore' if option else 'default'
+    warnings.filterwarnings(action, category=OverrideWarning)
+
+def delete_namespace(**kwargs):
+    """ Delete Namespace (Package Global Scope)
+
+        :arg: automatic mode [default: disabled]
+    """
+    if 'automatic' in kwargs:
+        automatic = kwargs['automatic']
+        Parser.continue_parsing = not automatic
+    Parser._namespace, Parser._property = {}, {}
+
 # pylint: disable = unused-argument
 inside_ipython = False
 try:
@@ -1925,7 +1934,7 @@ def parse(sentence, verbose=False, ipython=False):
         :return: namespace
     """
     if not Parser.continue_parsing:
-        Parser.clear_namespace()
+        delete_namespace()
     _namespace = Parser._namespace.copy()
     namespace = Parser(verbose).parse(sentence)
     key_diff = [key for key in namespace if key not in _namespace]
