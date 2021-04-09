@@ -1,5 +1,4 @@
 from setuptools import setup
-import os
 
 # HERE = pathlib.Path(__file__).parent
 # README = (HERE / "README.md").read_text()

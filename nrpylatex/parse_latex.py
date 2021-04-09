@@ -3,7 +3,7 @@
 # Email:  ksible *at* outlook *dot* com
 
 # pylint: disable = attribute-defined-outside-init, protected-access, exec-used
-from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add, Mul
+from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
 from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
 from sympy import pi, exp, log, sqrt, expand, diff, srepr
 from inspect import currentframe
@@ -1814,10 +1814,10 @@ class Tensor:
                     vector = '\\text{' + vector + '}'
                 operator += '\\mathcal{L}_' + vector + ' '
                 i_2 = i_1
-        diacritic = 'bar'   if 'bar'   in symbol[i_1:i_2] \
-               else 'hat'   if 'hat'   in symbol[i_1:i_2] \
-               else 'tilde' if 'tilde' in symbol[i_1:i_2] \
-               else ''
+        # diacritic = 'bar'   if 'bar'   in symbol[i_1:i_2] \
+        #        else 'hat'   if 'hat'   in symbol[i_1:i_2] \
+        #        else 'tilde' if 'tilde' in symbol[i_1:i_2] \
+        #        else ''
         symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
         for i, character in enumerate(reversed(symbol)):
             if character not in ('U', 'D'):
@@ -1907,6 +1907,14 @@ class ParseOutput(tuple):
     # pylint: disable = unused-argument
     def __new__(cls, iterable, sentence):
         return super(ParseOutput, cls).__new__(cls, iterable)
+
+    def __eq__(self, other):
+        return self.iterable == other.iterable and \
+               self.sentence == other.sentence
+
+    def __ne__(self, other):
+        return self.iterable != other.iterable and \
+               self.sentence != other.sentence
 
     def _repr_latex_(self):
         return r'\[' + self.sentence + r'\]'
