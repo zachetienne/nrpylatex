@@ -5,69 +5,78 @@
 
 [NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for Numerical Relativity
 
-- automatic expansion of [Einstein notation](https://en.wikipedia.org/wiki/Einstein_notation)
-- automatic generation of Levi-Civita symbols
-- automatic generation of Christoffel symbols
-- automatic generation of covariant derivatives
-- automatic generation of Lie derivatives
-- automatic generation of metric inverse and determinant
-- automatic index raising/lowering using the metric
-- robust exception handling (including invalid indexing)
+- automatic expansion of
+  - [Einstein summation convention](https://en.wikipedia.org/wiki/Einstein_notation)
+  - Levi-Civita and Christoffel symbols
+  - Lie and covariant derivatives
+  - metric inverses and determinants
+- automatic raising/lowering using metric(s)
+- diacritical metric support (multiple allowed)
+- robust exception handling (indexing violation)
 
-## Alternate CAS (Computer Algebra System)
+## &#167; Alternate CAS (Computer Algebra System)
 
 If you are using Mathematica instead of SymPy,
 
-        from sympy import mathematica_code
-        
-        namespace = parse(...)
-        for var in namespace:
-            exec(f'{var} = mathematica_code({var})') # Python 3
+    from sympy import mathematica_code
+    
+    namespace = parse(...)
+    for var in namespace:
+        exec(f'{var} = mathematica_code({var})')
 
-If you are using a different CAS, reference the SymPy [documentation]((https://docs.sympy.org/latest/modules/printing.html)) to find the relevant printing function.
+If you are using a different CAS, reference the SymPy [documentation](https://docs.sympy.org/latest/modules/printing.html) to find the relevant printing function.
 
-## Installation
+## &#167; Installation
 
 To install NRPyLaTeX using [PyPI](https://pypi.org/project/nrpylatex/), run the following command
 
     $ pip install nrpylatex
 
-## Interactive Tutorial (MyBinder)
+## &#167; Interactive Tutorial (MyBinder)
 
 [Getting Started](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Parser_Interface.ipynb) | [Guided Example (Cartesian BSSN)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
 
-## Documentation and Usage
+## &#167; Documentation and Usage
 
 ### Simple Example ([Kretschmann Scalar](https://en.wikipedia.org/wiki/Kretschmann_scalar))
 
-        >>> from nrpylatex import parse
-        >>> from sympy import simplify
-        >>> parse(r"""
-        ...     % keydef basis [t, r, \theta, \phi]
-        ...     % vardef -zero 'gDD' (4D)
-        ...     % vardef -const 'G', 'M'
-        ...
-        ...     \begin{align}
-        ...         %% define Schwarzschild metric
-        ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
-        ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
-        ...         g_{\theta \theta} &= r^{{2}} \\
-        ...         g_{\phi \phi} &= r^{{2}} \sin^2\theta
-        ...     \end{align}
-        ...     % assign -metric 'gDD'
-        ...
-        ...     \begin{align}
-        ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
-        ...             + \Gamma^\alpha_{\mu \gamma} \Gamma^\gamma_{\beta \nu} - \Gamma^\alpha_{\nu \sigma} \Gamma^\sigma_{\beta \mu} \\
-        ...         K &= R^{\alpha \beta \mu \nu} R_{\alpha \beta \mu \nu}
-        ...     \end{align}
-        ... """);
-        >>> print(simplify(K))
-        48*G**2*M**2/r**6
-        
+    >>> from nrpylatex import parse
+    >>> from sympy import simplify
+    >>> parse(r"""
+    ...     % keydef basis [t, r, \theta, \phi]
+    ...     % vardef -zero 'gDD' (4D)
+    ...     % vardef -const 'G', 'M'
+    ...
+    ...     \begin{align}
+    ...         %% define Schwarzschild metric
+    ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
+    ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
+    ...         g_{\theta \theta} &= r^{{2}} \\
+    ...         g_{\phi \phi} &= r^{{2}} \sin^2\theta
+    ...     \end{align}
+    ...     % assign -metric 'gDD'
+    ...
+    ...     \begin{align}
+    ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
+    ...             + \Gamma^\alpha_{\mu \gamma} \Gamma^\gamma_{\beta \nu} - \Gamma^\alpha_{\nu \sigma} \Gamma^\sigma_{\beta \mu} \\
+    ...         K &= R^{\alpha \beta \mu \nu} R_{\alpha \beta \mu \nu}
+    ...     \end{align}
+    ... """);
+    >>> print(simplify(K))
+    48*G**2*M**2/r**6
+
+### Einstein Summation Convention
+
+If the same index appears exactly twice in any single term, assume summation over the range of that index.
+
+    M^{n k} v_k := \sum_k M^{n k} v_k = M^{n 0} v_0 + M^{n 1} v_1 + ...
+
 ### Indexing Ambiguity
 
-If you attempt to parse `v^2`, that could be converted into `v**2` (a scalar `v` squared) or `vU[2]` (the third component of a vector `vU`). Furthermore, if you already defined `v` or `vU` using `vardef`, we still cannot distinguish between `v**2` and `vU[2]` since both `v` and `vU` can exist in the namespace simultaneously. Therefore, to differentiate between them, we assume vector indexing and require that you use the notation `v^{{2}}` otherwise. To mitigate the task of changing every `v^2` to `v^{{2}}`, we recommend using `srepl "v^{<1>}" -> "v^<1>", "v^<1>" -> "v^{{<1>}}"`. Likewise, if you need to parse `v_2` into a symbol, we recommend using `srepl "v_{<1>}" -> "v_<1>", "v_<1>" -> "\text{v_<1>}"`. We should mention that you can build a compound symbol using the `text` command. To resolve a more complex indexing ambiguity, read the `srepl` documentation below or visit the interactive tutorial (see above).
+If you attempt to parse `v^2`, that could be converted into `v**2` (a scalar `v` squared) or `vU[2]` (the third component of a vector `vU`). Furthermore, if you already defined `v` or `vU` using `vardef`, we still cannot distinguish between `v**2` and `vU[2]` since both `v` and `vU` can exist in the namespace simultaneously. Therefore, to differentiate between them, we assume vector indexing and require that you use the notation `v^{{2}}` otherwise. To mitigate the task of changing every `v^2` to `v^{{2}}`, we recommend using (1). Likewise, if you need to parse `v_2` into a symbol, we recommend using (2). We should also mention that you can build a compound symbol using the `text` command.
+
+    (1) srepl "v^{<1>}" -> "v^<1>", "v^<1>" -> "v^{{<1>}}"
+    (2) srepl "v_{<1>}" -> "v_<1>", "v_<1>" -> "\text{v_<1>}"
 
 #### PARSE MACRO
     parse - parse an equation without rendering
