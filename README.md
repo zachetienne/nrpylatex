@@ -50,11 +50,12 @@ To install NRPyLaTeX using [PyPI](https://pypi.org/project/nrpylatex/), run the 
     ...         % vardef -zero 'gDD' (4D)
     ...         % vardef -const 'G', 'M'
     ...
-    ...         %% define Schwarzschild metric
+    ...         %% define Schwarzschild metric diagonal
     ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
     ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
-    ...         g_{\theta \theta} &= r^{{2}} \\
-    ...         g_{\phi \phi} &= r^{{2}} \sin^2\theta \\
+    ...         g_{\theta \theta} &= r^2 \\
+    ...         g_{\phi \phi} &= r^2 \sin^2\theta \\
+    ...         %% generate metric inverse gUU, determinant det(gDD), and connection GammaUDD
     ...         % assign -metric 'gDD'
     ...
     ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
@@ -73,10 +74,7 @@ If the same index appears exactly twice in any single term, assume summation ove
 
 ### Indexing Ambiguity
 
-If you attempt to parse `v^2`, that could be converted into `v**2` (a scalar `v` squared) or `vU[2]` (the third component of a vector `vU`). Furthermore, if you already defined `v` or `vU` using `vardef`, we still cannot distinguish between `v**2` and `vU[2]` since both `v` and `vU` can exist in the namespace simultaneously. Therefore, to differentiate between them, we assume vector indexing and require that you use the notation `v^{{2}}` otherwise. To mitigate the task of changing every `v^2` to `v^{{2}}`, we recommend using (1). Likewise, if you need to parse `v_2` into a symbol, we recommend using (2). We should also mention that you can build a compound symbol using the `text` command.
-
-    (1) srepl "v^{<1>}" -> "v^<1>", "v^<1>" -> "v^{{<1>}}"
-    (2) srepl "v_{<1>}" -> "v_<1>", "v_<1>" -> "\text{v_<1>}"
+If `v` and `vU` are both in the namespace and you attempt to parse `v^2`, the output from NRPyLaTeX will be `vU[2]` (the third component of `vU`). To resolve the indexing ambiguity between `vU[2]` and `v**2` (`v` squared), we suggest using the notation `v^{{2}}` since `v^2` and `v^{{2}}` are identical in LaTeX.
 
 #### PARSE MACRO
     parse - parse an equation without rendering
