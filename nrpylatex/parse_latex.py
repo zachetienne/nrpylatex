@@ -703,6 +703,29 @@ class Parser:
     # <BASE> -> [ '-' ] ( <NUMBER> | <COMMAND> | <OPERATOR> | <SUBEXPR> )
     def _base(self):
         sign = -1 if self.accept('MINUS') else 1
+        if self.peek('LETTER') or self.peek('TEXT_CMD'):
+            self.lexer.mark()
+            symbol = self._strip(self._symbol())
+            if symbol in ('epsilon', 'Gamma', 'D'):
+                self.lexer.reset()
+                return sign * self._operator()
+            if symbol in self._namespace:
+                if isinstance(self._namespace[symbol], Function('Constant')):
+                    return sign * self._namespace[symbol]
+                if self._namespace[symbol].rank < 1:
+                    for variable in self._namespace:
+                        if isinstance(self._namespace[variable], Tensor) and self._namespace[variable].rank > 1 \
+                                and symbol == re.split(r'[UD]|_d|_dup|_cd|_ld', variable)[0]:
+                            self.lexer.reset()
+                            return sign * self._operator()
+                    function = Function('Tensor')(Symbol(symbol, real=True))
+                    return sign * function
+            if all(symbol != re.split(r'[UD]|_d|_dup|_cd|_ld', variable)[0] for variable in self._namespace):
+                function = Function('Tensor')(Symbol(symbol, real=True))
+                self._define_tensor(Tensor(function))
+                return sign * function
+            self.lexer.reset()
+            return sign * self._operator()
         if any(self.peek(token) for token in
                 ('RATIONAL', 'DECIMAL', 'INTEGER', 'PI')):
             return sign * self._number()

@@ -24,7 +24,7 @@ class TestParser(unittest.TestCase):
 
     def test_expression_2(self):
         delete_namespace()
-        expr = r'e^{{\ln x}} + \sin(\sin^{-1} y) - \tanh(xy)'
+        expr = r'e^{\ln x} + \sin(\sin^{-1} y) - \tanh(xy)'
         self.assertEqual(
             str(parse_expr(expr)),
             'x + y - tanh(x*y)'
@@ -32,7 +32,7 @@ class TestParser(unittest.TestCase):
 
     def test_expression_3(self):
         delete_namespace()
-        expr = r'\partial_x (x^{{2}} + 2x)'
+        expr = r'\partial_x (x^2 + 2x)'
         self.assertEqual(
             str(parse_expr(expr).doit()),
             '2*x + 2'
@@ -167,7 +167,7 @@ class TestParser(unittest.TestCase):
                 % keydef basis [x, y]
                 % vardef 'uD' (2D), 'wD' (2D)
                 % keydef index [a-z] (2D)
-                u_x = x^{{2}} + 2x \\
+                u_x = x^2 + 2x \\
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
                 % assign -diff_type=dD 'wD', 'vD'
@@ -187,7 +187,7 @@ class TestParser(unittest.TestCase):
                 % vardef 'uD' (2D), 'wD' (2D)
                 % assign -diff_type=symbolic 'uD'
                 % keydef index [a-z] (2D)
-                u_x = x^{{2}} + 2x \\
+                u_x = x^2 + 2x \\
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
                 T_{bc} = \vphantom{dD} \partial_c v_b
@@ -220,8 +220,8 @@ class TestParser(unittest.TestCase):
             % vardef -const 'r'
             % keydef index [a-z] (2D)
             \begin{align*}
-                g_{0 0} &= r^{{2}} \\
-                g_{1 1} &= r^{{2}} \sin^2(\theta)
+                g_{0 0} &= r^2 \\
+                g_{1 1} &= r^2 \sin^2(\theta)
             \end{align*}
             % assign -metric 'gDD'
             \begin{align*}
@@ -377,8 +377,8 @@ class TestParser(unittest.TestCase):
             \begin{align}
                 g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
                 g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
-                g_{\theta \theta} &= r^{{2}} \\
-                g_{\phi \phi} &= r^{{2}} \sin^2\theta
+                g_{\theta \theta} &= r^2 \\
+                g_{\phi \phi} &= r^2 \sin^2\theta
             \end{align}
             % assign -metric 'gDD'
         """)
