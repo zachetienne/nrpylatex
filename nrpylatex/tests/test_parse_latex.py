@@ -15,6 +15,7 @@ class TestParser(unittest.TestCase):
         ignore_override(True)
 
     def test_expression_1(self):
+        delete_namespace()
         expr = r'-(\frac{2}{3} + 2\sqrt[5]{x + 3})'
         self.assertEqual(
             str(parse_expr(expr)),
@@ -22,6 +23,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_expression_2(self):
+        delete_namespace()
         expr = r'e^{{\ln x}} + \sin(\sin^{-1} y) - \tanh(xy)'
         self.assertEqual(
             str(parse_expr(expr)),
@@ -29,6 +31,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_expression_3(self):
+        delete_namespace()
         expr = r'\partial_x (x^{{2}} + 2x)'
         self.assertEqual(
             str(parse_expr(expr).doit()),
@@ -60,6 +63,7 @@ class TestParser(unittest.TestCase):
     def test_expression_5(self):
         delete_namespace()
         parse(r"""
+            % keydef basis [t, x, y, z]
             % vardef -diff_type=dD -metric 'gDD' (4D)
             % vardef -diff_type=dD 'vU' (4D)
             T^\mu_b = \nabla_b v^\mu
@@ -147,6 +151,7 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
+                % keydef basis [t, x, y, z]
                 % vardef -diff_type=dD -metric 'gDD' (4D)
                 % vardef -diff_type=dD 'vU' (4D)
                 % keydef index [a-z] (4D)
@@ -166,12 +171,12 @@ class TestParser(unittest.TestCase):
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
                 % assign -diff_type=dD 'wD', 'vD'
-                T_{ab} = \partial^2_x v_x (\partial_b v_a)
+                T_{ab} = \partial_b v_a
             """)),
             {'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
         )
         self.assertEqual(str(TDD),
-            '[[2*wD_dD00 + 4*x + 4, 2*wD_dD01], [2*wD_dD10 + y/sqrt(x), 2*wD_dD11 + 2*sqrt(x)]]'
+            '[[wD_dD00 + 2*x + 2, wD_dD01], [wD_dD10 + y/(2*sqrt(x)), wD_dD11 + sqrt(x)]]'
         )
 
     def test_assignment_5(self):
@@ -185,12 +190,12 @@ class TestParser(unittest.TestCase):
                 u_x = x^{{2}} + 2x \\
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
-                T_{bc} = \partial^2_x v_x (\vphantom{dD} \partial_c v_b)
+                T_{bc} = \vphantom{dD} \partial_c v_b
             """)),
             {'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
         )
         self.assertEqual(str(TDD),
-            '[[2*wD_dD00 + 4*x + 4, 2*wD_dD01], [2*wD_dD10 + y/sqrt(x), 2*wD_dD11 + 2*sqrt(x)]]'
+            '[[wD_dD00 + 2*x + 2, wD_dD01], [wD_dD10 + y/(2*sqrt(x)), wD_dD11 + sqrt(x)]]'
         )
 
     def test_assignment_6(self):
@@ -251,10 +256,10 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
-                % vardef -metric 'gDD' (4D)
+                % vardef -symmetry=sym01 'gDD' (4D)
                 \gamma_{ij} = g_{ij}
             """)),
-            {'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'gammaDD'}
+            {'gDD', 'gammaDD'}
         )
         self.assertEqual(str(gammaDD),
             '[[gDD11, gDD12, gDD13], [gDD12, gDD22, gDD23], [gDD13, gDD23, gDD33]]'
@@ -279,11 +284,12 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
+                % keydef basis [x, y, z]
                 % vardef -metric 'gDD'
                 % vardef 'ADDD', 'AUUU'
                 B^{a b}_c = A^{a b}_c
             """)),
-            {'ADDD', 'BUUD', 'gdet', 'gDD', 'AUUD', 'AUUU', 'gUU', 'epsilonUUU'}
+            {'gDD', 'epsilonUUU', 'gdet', 'gUU', 'GammaUDD', 'ADDD', 'AUUU', 'AUUD', 'BUUD'}
         )
 
     def test_example_1(self):
@@ -303,11 +309,12 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
+                % keydef basis [x, y, z]
                 % vardef -metric 'gUU' (3D)
                 % vardef 'vD' (3D)
                 v^\mu = g^{\mu\nu} v_\nu
             """)),
-            {'gDD', 'gdet', 'epsilonDDD', 'gUU', 'vD', 'vU'}
+            {'gUU', 'epsilonDDD', 'gdet', 'gDD', 'GammaUDD', 'vD', 'vU'}
         )
         self.assertEqual(str(vU),
             '[gUU00*vD0 + gUU01*vD1 + gUU02*vD2, gUU01*vD0 + gUU11*vD1 + gUU12*vD2, gUU02*vD0 + gUU12*vD1 + gUU22*vD2]'
@@ -330,6 +337,7 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
+                % keydef basis [t, x, y, z]
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
                 % vardef -diff_type=dD -metric 'gDD' (4D)
                 % vardef -const 'k'
@@ -340,6 +348,7 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
+                % keydef basis [t, x, y, z]
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
                 % vardef -diff_type=dD -metric 'gDD' (4D)
                 % vardef -const 'k'
@@ -350,6 +359,7 @@ class TestParser(unittest.TestCase):
         delete_namespace()
         self.assertEqual(
             set(parse(r"""
+                % keydef basis [t, x, y, z]
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
                 % vardef -diff_type=dD -metric 'ghatDD' (4D)
                 % vardef -const 'k'
@@ -470,6 +480,7 @@ class TestParser(unittest.TestCase):
     def test_metric_symmetry():
         delete_namespace()
         parse(r"""
+            % keydef basis [x, y, z]
             % vardef -zero 'gDD'
             g_{1 0} = 1 \\
             g_{2 0} = 2
@@ -479,6 +490,7 @@ class TestParser(unittest.TestCase):
         assert_equal(gDD[0][2], 2, suppress_message=True)
         delete_namespace()
         parse(r"""
+            % keydef basis [x, y, z]
             % vardef -zero 'gDD'
             g_{0 1} = 1 \\
             g_{0 2} = 2
@@ -492,9 +504,10 @@ class TestParser(unittest.TestCase):
         for DIM in range(2, 5):
             delete_namespace()
             parse(r"""
+                % keydef basis [{basis}]
                 % vardef -metric 'gDD' ({DIM}D)
                 \Delta^a_c = g^{{ab}} g_{{bc}}
-            """.format(DIM=DIM))
+            """.format(basis=', '.join(['\\text{x_%d}' % i for i in range(DIM)]), DIM=DIM))
             for i in range(DIM):
                 for j in range(DIM):
                     value = 1 if i == j else 0
@@ -502,9 +515,10 @@ class TestParser(unittest.TestCase):
         for DIM in range(2, 5):
             delete_namespace()
             parse(r"""
+                % keydef basis [{basis}]
                 % vardef -metric 'gUU' ({DIM}D)
                 \Delta^a_c = g^{{ab}} g_{{bc}}
-            """.format(DIM=DIM))
+            """.format(basis=', '.join(['\\text{x_%d}' % i for i in range(DIM)]), DIM=DIM))
             for i in range(DIM):
                 for j in range(DIM):
                     value = 1 if i == j else 0
