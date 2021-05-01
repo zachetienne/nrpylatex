@@ -30,7 +30,7 @@ If you are using a different CAS, reference the SymPy [documentation](https://do
 
 ## &#167; Installation
 
-To install NRPyLaTeX using [PyPI](https://pypi.org/project/nrpylatex/), run the following command
+To install **NRPyLaTeX** using [PyPI](https://pypi.org/project/nrpylatex/), run the following command
 
     $ pip install nrpylatex
 
@@ -74,7 +74,9 @@ If the same index appears exactly twice in any single term, assume summation ove
 
 ### Indexing Ambiguity
 
-If `v` and `vU` are both in the namespace and you attempt to parse `v^2`, the output from NRPyLaTeX will be `vU[2]` (the third component of `vU`). To resolve the indexing ambiguity between `vU[2]` and `v**2` (`v` squared), we suggest using the notation `v^{{2}}` since `v^2` and `v^{{2}}` are identical in LaTeX.
+If `v` and `vU` are both in the namespace and you attempt to parse the expression `v^2`, the output from **NRPyLaTeX** will be `vU[2]` (the third component of `vU`). To resolve the indexing ambiguity between `vU[2]` and `v**2` (`v` squared), we suggest using the notation `v^{{2}}` since `v^2` and `v^{{2}}` are rendered identically in LaTeX. Similarly, if `v` and `vD` are both in the namespace and you are parsing the symbol `v_2`, we suggest replacing `v_2` with `\text{v_2}` using the `srepl` macro to preserve the LaTeX rendering and build a compound symbol.
+
+    srepl "v_{<1..>}" -> "v<>{<1..>}", "v_<1>" -> "\text{v_<1>}", "v<>{<1..>}" -> "\text{v_<1..>}"
 
 #### PARSE MACRO
     parse - parse an equation without rendering

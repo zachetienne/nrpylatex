@@ -81,6 +81,7 @@ class Lexer:
             ('SYMMETRY',        r'symmetry'),
             ('WEIGHT',          r'weight'),
             ('ZERO',            r'zero'),
+            ('DEFAULT',         r'default'),
             ('PERSIST',         r'persist'),
             ('DIFF_OPT',        r'symbolic|dD|dupD'),
             ('SYM_OPT',         symmetry),
@@ -160,7 +161,7 @@ class Parser:
         #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
         #     <SREPL>     -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
         #     <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> { ',' <VARIABLE> }* [ '(' <DIMENSION> ')' ]
-        #     <KEYDEF>    -> <KEYDEF_MACRO> <BASIS_KWRD> <BASIS> | <INDEX_KWRD> <INDEX>
+        #     <KEYDEF>    -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
         #     <ASSIGN>    -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
         #     <IGNORE>    -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
         #     <OPTION>    -> <CONSTANT> | <KRONECKER> | <METRIC> [ '=' <VARIABLE> ] | <WEIGHT> '=' <NUMBER>
@@ -200,7 +201,7 @@ class Parser:
         if not self._property:
             self._property['dimension'] = 3
             self._property['srepl'] = []
-            self._property['basis'] = []
+            self._property['basis'] = CoordinateSystem('x')
             self._property['index'] = {i: self._property['dimension']
                 for i in (chr(i) for i in range(105, 123))} # TODO 105 -> 97
             self._property['ignore'] = ['\\left', '\\right', '{}', '&']
@@ -400,8 +401,6 @@ class Parser:
             if option == 'diff_type':
                 diff_type = value
             elif option == 'symmetry':
-                if value == 'metric' and not self._property['basis']:
-                    raise ParseError('cannot generate connection without specifying a basis', sentence, position)
                 symmetry = value
             elif option == 'metric':
                 metric = value
@@ -443,13 +442,18 @@ class Parser:
                 self.lexer.lex()
             if not self.accept('COMMA'): break
 
-    # <KEYDEF> -> <KEYDEF_MACRO> <BASIS_KWRD> <BASIS> | <INDEX_KWRD> <INDEX>
+    # <KEYDEF> -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
     def _keydef(self):
         self.expect('KEYDEF_MACRO')
         if self.accept('BASIS_KWRD'):
-            self._basis()
+            if self.accept('DEFAULT'):
+                self._property['basis'] = CoordinateSystem('x')
+            else: self._basis()
         elif self.accept('INDEX_KWRD'):
-            self._index()
+            if self.accept('DEFAULT'):
+                self._property['index'] = {i: self._property['dimension']
+                    for i in (chr(i) for i in range(105, 123))} # TODO 105 -> 97
+            else: self._index()
         else:
             sentence, position = self.lexer.sentence, self.lexer.mark()
             raise ParseError('unexpected keyword at position %d' %
@@ -466,8 +470,6 @@ class Parser:
             if option == 'diff_type':
                 diff_type = value
             elif option == 'symmetry':
-                if value == 'metric' and not self._property['basis']:
-                    raise ParseError('cannot generate connection without specifying a basis', sentence, position)
                 symmetry = value
             elif option == 'metric':
                 metric = value
@@ -966,7 +968,6 @@ class Parser:
                         if vphantom and diff_type != 'symbolic':
                             diff_type = vphantom
                         if not isinstance(index, Symbol) and diff_type in ('symbolic', None):
-                            print(index, diff_type)
                             raise ParseError('cannot perform numeric indexing on a symbolic derivative', sentence, position)
                         subtree.expr = self._define_pardrv(function, location, diff_type, index)
                     del subtree.children[:]
@@ -983,6 +984,8 @@ class Parser:
         diff_type = tensor.diff_type
         if vphantom and diff_type != 'symbolic':
             diff_type = vphantom
+        if not isinstance(index, Symbol) and diff_type in ('symbolic', None):
+            raise ParseError('cannot perform numeric indexing on a symbolic derivative', sentence, position)
         return self._define_pardrv(function, location, diff_type, index)
 
     # <COVDRV> -> ( <COV_SYM> | <DIACRITIC> '{' <COV_SYM> '}' ) ( '^' | '_' ) <INDEXING_2> ( <OPERATOR> | <SUBEXPR> )
@@ -1512,9 +1515,6 @@ class Parser:
                                 index, self.lexer.sentence)
                         idx_map[str(index)] = upper_bound
                         if index not in self._property['basis']:
-                            if not self._property['basis']:
-                                message = 'cannot differentiate symbolically without specifying a basis'
-                                raise ParseError(message, self.lexer.sentence)
                             derivative += ', (basis[%s], %s)' % (index, order)
                             if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
                                 indexing.append((index, 'D'))
@@ -1836,6 +1836,31 @@ class Tensor:
         return 'Tensor(%s, %dD)' % (self.symbol, self.dimension)
 
     __str__ = __repr__
+
+class CoordinateSystem(list):
+    """ Coordinate System (Default List) """
+
+    def __init__(self, symbol):
+        self.symbol = symbol
+        self.default = lambda n: Symbol('%s_%d' % (symbol, n), real=True)
+
+    def index(self, value):
+        pattern = re.match(self.symbol + '_([0-9][0-9]*)', str(value))
+        if pattern is not None:
+            return pattern.group(1)
+        return list.index(self, value)
+
+    def __missing__(self, index):
+        return self.default(index)
+
+    def __getitem__(self, index):
+        try:
+            return list.__getitem__(self, index)
+        except IndexError:
+            return self.__missing__(index)
+
+    def __contains__(self, key):
+        return list.__contains__(self, key) or re.match(self.symbol + '_[0-9][0-9]*', str(key))
 
 def ignore_override(option):
     """ Ignore Override Warning
