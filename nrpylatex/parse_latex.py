@@ -362,13 +362,25 @@ class Parser:
                                 l += 1
                             if letter_1 != letter_2: break
                             k += l + 1
-                        elif _token == 'GROUP': # TODO TEXT_CMD
+                        elif _token == 'GROUP':
                             varmap[_lexeme] = string_syntax[k][1]
                             if _lexeme[-2] == '.':
                                 l, string = k + 1, varmap[_lexeme]
                                 if l < len(string_syntax) and j - i + 1 < len(substr_syntax):
-                                    while string_syntax[l][1] != substr_syntax[j - i + 1][0]:
-                                        string += string_syntax[l][1]
+                                    EOL = substr_syntax[j - i + 1]
+                                    while string_syntax[l][1] != EOL[0]:
+                                        if EOL[1] == 'LETTER' and string_syntax[l][2] == 'TEXT_CMD':
+                                            letter_1 = EOL[0][1:] if len(EOL[0]) > 1 else EOL[0]
+                                            letter_2, m = string_syntax[l + 2][1], 2
+                                            while string_syntax[l + m + 1][2] != 'RBRACE':
+                                                letter_2 += string_syntax[l + m + 1][1]
+                                                m += 1
+                                            if letter_1 == letter_2:
+                                                string_syntax[l + 1] = (string_syntax[l - 1][0], *EOL)
+                                            else:
+                                                string += '\\text{' + letter_2 + '}'
+                                                l += m + 1
+                                        else: string += string_syntax[l][1]
                                         if l + 1 >= len(string_syntax): break
                                         l += 1
                                     else:
