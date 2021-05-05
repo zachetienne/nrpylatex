@@ -376,7 +376,7 @@ class Parser:
                                                 letter_2 += string_syntax[l + m + 1][1]
                                                 m += 1
                                             if letter_1 == letter_2:
-                                                string_syntax[l + 1] = (string_syntax[l - 1][0], *EOL)
+                                                string_syntax[l + 1] = (string_syntax[l - 1][0], EOL[0], EOL[1])
                                             else:
                                                 string += '\\text{' + letter_2 + '}'
                                                 l += m + 1
@@ -723,29 +723,26 @@ class Parser:
                 self.lexer.reset()
                 return sign * self._operator()
             if symbol in self._namespace:
-                if isinstance(self._namespace[symbol], Function('Constant')):
-                    return sign * self._namespace[symbol]
-                if self._namespace[symbol].rank < 1:
-                    for variable in self._namespace:
-                        base_symbol = re.split(r'_d|_dup|_cd|_ld', variable)[0]
-                        for i, character in enumerate(reversed(base_symbol)):
-                            if character not in ('U', 'D'):
-                                base_symbol = base_symbol[:len(base_symbol) - i]; break
-                        if isinstance(self._namespace[variable], Tensor) and symbol == base_symbol and \
-                                self._namespace[variable].rank > 1:
-                            self.lexer.reset()
-                            return sign * self._operator()
-                    function = Function('Tensor')(Symbol(symbol, real=True))
-                    return sign * function
-            namespace = []
-            for variable in self._namespace:
-                variable = re.split(r'_d|_dup|_cd|_ld', variable)[0]
-                for i, character in enumerate(reversed(variable)):
+                variable = self._namespace[symbol]
+                if isinstance(variable, Tensor) and variable.rank > 0:
+                    self.lexer.reset()
+                    return sign * self._operator()
+            for key in self._namespace:
+                base_symbol = key
+                for i, character in enumerate(reversed(base_symbol)):
                     if character not in ('U', 'D'):
-                        namespace.append(variable[:len(variable) - i]); break
-            if all(symbol != variable for variable in namespace):
+                        base_symbol = base_symbol[:len(base_symbol) - i]; break
+                if isinstance(self._namespace[key], Tensor) and symbol == base_symbol \
+                        and self._namespace[key].rank > 0:
+                    self.lexer.reset()
+                    return sign * self._operator()
+            if self.peek('CARET'):
                 function = Function('Tensor')(Symbol(symbol, real=True))
-                self._define_tensor(Tensor(function))
+                if symbol in self._namespace:
+                    if isinstance(self._namespace[symbol], Function('Constant')):
+                        return sign * self._namespace[symbol]
+                else:
+                    self._define_tensor(Tensor(function, self._property['dimension']))
                 return sign * function
             self.lexer.reset()
             return sign * self._operator()
@@ -756,7 +753,7 @@ class Parser:
                 ('FUNC_CMD', 'FRAC_CMD', 'SQRT_CMD', 'NLOG_CMD', 'TRIG_CMD', 'COMMAND')):
             return sign * self._command()
         if any(self.peek(token) for token in
-                ('VPHANTOM', 'DIACRITIC', 'PAR_SYM', 'COV_SYM', 'LIE_SYM', 'LETTER', 'TEXT_CMD')):
+                ('VPHANTOM', 'DIACRITIC', 'PAR_SYM', 'COV_SYM', 'LIE_SYM')):
             return sign * self._operator()
         if any(self.peek(i) for i in ('LPAREN', 'LBRACK', 'ESCAPE')):
             return sign * self._subexpr()
@@ -1120,7 +1117,7 @@ class Parser:
                     if symbol in self._namespace:
                         if isinstance(self._namespace[symbol], Function('Constant')):
                             return self._namespace[symbol]
-                    else: self._define_tensor(Tensor(function))
+                    else: self._define_tensor(Tensor(function, self._property['dimension']))
                     return function
                 self.lexer.reset(); self.lexer.lex()
             index = self._indexing_3()
