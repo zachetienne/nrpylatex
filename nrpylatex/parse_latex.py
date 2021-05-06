@@ -6,6 +6,7 @@
 from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
 from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
 from sympy import pi, exp, log, sqrt, expand, diff, srepr
+from collections import OrderedDict
 from inspect import currentframe
 from nrpylatex.indexed_symbol import symdef
 from nrpylatex.functional import uniquify
@@ -193,7 +194,7 @@ class Parser:
         # <INDEXING_4>    -> <INDEXING_2> | '{' ( ',' | ';' ) { <INDEXING_1> }+ | { <INDEXING_1> }+ [ ( ',' | ';' ) { <INDEXING_1> }+ ] '}'
         # <NUMBER>        -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
 
-    _namespace, _property = {}, {}
+    _namespace, _property = OrderedDict(), {}
     continue_parsing = True
 
     def __init__(self, debug=False):
@@ -671,6 +672,9 @@ class Parser:
             diff_type = self._namespace[symbol].diff_type if symbol in self._namespace else None
             tensor = Tensor(function, dimension, structure=global_env[symbol],
                 equation=equation, diff_type=diff_type)
+        if symbol in self._namespace:
+            # throw warning on duplicate namespace variable
+            warnings.warn(symbol, OverrideWarning)
         self._namespace.update({symbol: tensor})
 
     # <EXPRESSION> -> <TERM> { ( '+' | '-' ) <TERM> }*
@@ -1332,11 +1336,7 @@ class Parser:
             tensor.structure = Symbol(symbol, real=True) if tensor.rank == 0 \
                 else symdef(tensor.rank, symbol if not zero else None, tensor.symmetry, dimension)
         if symbol in self._namespace:
-            # pylint: disable=unused-argument
-            def formatwarning(message, category, filename=None, lineno=None, file=None, line=None):
-                return '%s: %s\n' % (category.__name__, message)
-            warnings.formatwarning = formatwarning
-            # throw warning whenever duplicate namespace variable
+            # throw warning on duplicate namespace variable
             warnings.warn(symbol, OverrideWarning)
         self._namespace[symbol] = tensor
 
@@ -1717,6 +1717,17 @@ class ParseError(Exception):
             super(ParseError, self).__init__('%s\n%s^\n' % (sentence, (12 + position) * ' ') + message)
         else: super(ParseError, self).__init__(message)
 
+class TensorError(Exception):
+    """ Invalid Tensor Indexing or Dimension """
+
+class OverrideWarning(UserWarning):
+    """ Overridden Namespace Variable """
+# pylint: disable=unused-argument
+def _formatwarning(message, category, filename=None, lineno=None, file=None, line=None):
+    return '%s: \'%s\'\n' % (category.__name__, message)
+warnings.formatwarning = _formatwarning
+warnings.simplefilter('always', OverrideWarning)
+
 class Tensor:
     """ Tensor Structure """
 
@@ -1807,10 +1818,6 @@ class Tensor:
                     vector = '\\text{' + vector + '}'
                 operator += '\\mathcal{L}_' + vector + ' '
                 i_2 = i_1
-        # diacritic = 'bar'   if 'bar'   in symbol[i_1:i_2] \
-        #        else 'hat'   if 'hat'   in symbol[i_1:i_2] \
-        #        else 'tilde' if 'tilde' in symbol[i_1:i_2] \
-        #        else ''
         symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
         for i, character in enumerate(reversed(symbol)):
             if character not in ('U', 'D'):
@@ -1907,41 +1914,33 @@ try:
 except NameError: pass
 if inside_ipython:
     from IPython.core.magic import register_cell_magic
+
+    class LaTeX:
+        """ Jupyter Notebook LaTeX Structure """
+
+        def __init__(self, latex):
+            self.latex = latex
+
+        def _repr_latex_(self):
+            return r'\[' + self.latex + r'\]'
+
     @register_cell_magic
     def parse_latex(line, cell):
-        try: return parse(cell, ipython=True)
+        try:
+            if not Parser.continue_parsing:
+                delete_namespace()
+            namespace = Parser().parse(cell)
+            frame = currentframe().f_back.f_back
+            for key in namespace:
+                if isinstance(namespace[key], Function('Constant')):
+                    frame.f_globals[key] = namespace[key].args[0]
+                else:
+                    frame.f_globals[key] = namespace[key].structure
+            return LaTeX(cell)
         except (ParseError, TensorError) as Error:
             ErrorName = 'ParseError' \
                 if type(Error).__name__ == 'ParseError' else 'TensorError'
             print(ErrorName + ': ' + str(Error))
-
-class ParseOutput(tuple):
-    """ Output Structure for IPython (Jupyter) """
-
-    # pylint: disable = super-init-not-called
-    def __init__(self, iterable, sentence):
-        self.iterable = iterable
-        self.sentence = sentence
-
-    # pylint: disable = unused-argument
-    def __new__(cls, iterable, sentence):
-        return super(ParseOutput, cls).__new__(cls, iterable)
-
-    def __eq__(self, other):
-        return self.iterable == other.iterable and \
-               self.sentence == other.sentence
-
-    def __ne__(self, other):
-        return self.iterable != other.iterable and \
-               self.sentence != other.sentence
-
-    def _repr_latex_(self):
-        return r'\[' + self.sentence + r'\]'
-
-class TensorError(Exception):
-    """ Invalid Tensor Indexing or Dimension """
-class OverrideWarning(UserWarning):
-    """ Overridden Namespace Variable """
 
 def parse_expr(sentence, verbose=False):
     """ Convert LaTeX Sentence to SymPy Expression (Expression Mode)
@@ -1979,6 +1978,5 @@ def parse(sentence, verbose=False, ipython=False):
             frame.f_globals[key] = namespace[key].args[0]
             if not verbose and key in key_diff:
                 key_diff.remove(key)
-    iterable = tuple(key_diff) if not verbose \
+    return tuple(key_diff) if not verbose \
           else tuple(namespace[key] for key in key_diff)
-    return ParseOutput(iterable, sentence)
