@@ -654,14 +654,14 @@ class Parser:
         LHS, RHS = function, expand(tree.root.expr) if indexed else tree.root.expr
         # perform implied summation on indexed expression
         LHS_RHS, dimension = self._summation(LHS, RHS)
-        global_env = self._namespace.copy()
-        global_env.update(self._property)
-        exec('from sympy import *', global_env)
+        global_env = dict(self._namespace)
         for key in global_env:
             if isinstance(global_env[key], Tensor):
                 global_env[key] = global_env[key].structure
             if isinstance(global_env[key], Function('Constant')):
                 global_env[key] = global_env[key].args[0]
+        global_env['basis'] = self._property['basis']
+        exec('from sympy import *', global_env)
         # evaluate every implied summation and update namespace
         exec(LHS_RHS, global_env)
         symbol, indices = str(function.args[0]), function.args[1:]
