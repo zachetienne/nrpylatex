@@ -3,101 +3,99 @@
 # Email:  ksible *at* outlook *dot* com
 
 # pylint: disable = import-error, protected-access, exec-used
-from nrpylatex.assert_equal import assert_equal
-from nrpylatex.parse_latex import *
-from sympy import Function, Symbol, Matrix, simplify
-import unittest, sys
+from nrpylatex.core.assert_equal import assert_equal
+import nrpylatex as nl, sympy as sp, unittest, sys
 
 class TestParser(unittest.TestCase):
 
     def setUp(self):
         self.maxDiff = None
-        ignore_override(True)
+        nl.ignore_warning(True)
 
     def test_expression_1(self):
-        delete_namespace()
+        nl.delete_namespace()
         expr = r'-(\frac{2}{3} + 2\sqrt[5]{x + 3})'
         self.assertEqual(
-            str(parse_expr(expr)),
+            str(nl.parse_latex(expr)),
             '-2*(x + 3)**(1/5) - 2/3'
         )
 
     def test_expression_2(self):
-        delete_namespace()
+        nl.delete_namespace()
         expr = r'e^{\ln x} + \sin(\sin^{-1} y) - \tanh(xy)'
         self.assertEqual(
-            str(parse_expr(expr)),
+            str(nl.parse_latex(expr)),
             'x + y - tanh(x*y)'
         )
 
     def test_expression_3(self):
-        delete_namespace()
+        nl.delete_namespace()
         expr = r'\partial_x (x^2 + 2x)'
         self.assertEqual(
-            str(parse_expr(expr).doit()),
+            str(nl.parse_latex(expr).doit()),
             '2*x + 2'
         )
 
     def test_expression_4(self):
-        function = Function('Tensor')(Symbol('T'))
+        function = sp.Function('Tensor')(sp.Symbol('T'))
         self.assertEqual(
-            Parser._generate_covdrv(function, 'beta'),
+            nl.Parser._generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T = \partial_{\beta} T'
         )
-        function = Function('Tensor')(Symbol('TUU'), Symbol('mu'), Symbol('nu'))
+        function = sp.Function('Tensor')(sp.Symbol('TUU'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
-            Parser._generate_covdrv(function, 'beta'),
+            nl.Parser._generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T^{\mu \nu} = \partial_{\beta} T^{\mu \nu} + \text{Gamma}^{\mu}_{a \beta} (T^{a \nu}) + \text{Gamma}^{\nu}_{a \beta} (T^{\mu a})'
         )
-        function = Function('Tensor')(Symbol('TUD'), Symbol('mu'), Symbol('nu'))
+        function = sp.Function('Tensor')(sp.Symbol('TUD'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
-            Parser._generate_covdrv(function, 'beta'),
+            nl.Parser._generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T^{\mu}_{\nu} = \partial_{\beta} T^{\mu}_{\nu} + \text{Gamma}^{\mu}_{a \beta} (T^{a}_{\nu}) - \text{Gamma}^{a}_{\nu \beta} (T^{\mu}_{a})'
         )
-        function = Function('Tensor')(Symbol('TDD'), Symbol('mu'), Symbol('nu'))
+        function = sp.Function('Tensor')(sp.Symbol('TDD'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
-            Parser._generate_covdrv(function, 'beta'),
+            nl.Parser._generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T_{\mu \nu} = \partial_{\beta} T_{\mu \nu} - \text{Gamma}^{a}_{\mu \beta} (T_{a \nu}) - \text{Gamma}^{a}_{\nu \beta} (T_{\mu a})'
         )
 
     def test_expression_5(self):
-        delete_namespace()
-        parse(r"""
+        nl.delete_namespace()
+        nl.parse_latex(r"""
             % vardef -diff_type=dD -metric 'gDD' (4D)
             % vardef -diff_type=dD 'vU' (4D)
             T^\mu_b = \nabla_b v^\mu
         """)
-        function = Function('Tensor')(Symbol('vU_cdD'), Symbol('mu'), Symbol('b'))
+        function = sp.Function('Tensor')(sp.Symbol('vU_cdD'), sp.Symbol('mu'), sp.Symbol('b'))
         self.assertEqual(
-            Parser._generate_covdrv(function, 'a'),
+            nl.Parser._generate_covdrv(function, 'a'),
             r'\nabla_{a} \nabla_{b} v^{\mu} = \partial_{a} \nabla_{b} v^{\mu} + \text{Gamma}^{\mu}_{c a} (\nabla_{b} v^{c}) - \text{Gamma}^{c}_{b a} (\nabla_{c} v^{\mu})'
         )
 
     def test_expression_6(self):
-        function = Function('Tensor')(Symbol('g'))
+        function = sp.Function('Tensor')(sp.Symbol('g'))
         self.assertEqual(
-            Parser._generate_liedrv(function, 'beta', 2),
+            nl.Parser._generate_liedrv(function, 'beta', 2),
             r'\mathcal{L}_\text{beta} g = \text{beta}^{a} \partial_{a} g + (2)(\partial_{a} \text{beta}^{a}) g'
         )
-        function = Function('Tensor')(Symbol('gUU'), Symbol('i'), Symbol('j'))
+        function = sp.Function('Tensor')(sp.Symbol('gUU'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
-            Parser._generate_liedrv(function, 'beta'),
+            nl.Parser._generate_liedrv(function, 'beta'),
             r'\mathcal{L}_\text{beta} g^{i j} = \text{beta}^{a} \partial_{a} g^{i j} - (\partial_{a} \text{beta}^{i}) g^{a j} - (\partial_{a} \text{beta}^{j}) g^{i a}'
         )
-        function = Function('Tensor')(Symbol('gUD'), Symbol('i'), Symbol('j'))
+        function = sp.Function('Tensor')(sp.Symbol('gUD'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
-            Parser._generate_liedrv(function, 'beta'),
+            nl.Parser._generate_liedrv(function, 'beta'),
             r'\mathcal{L}_\text{beta} g^{i}_{j} = \text{beta}^{a} \partial_{a} g^{i}_{j} - (\partial_{a} \text{beta}^{i}) g^{a}_{j} + (\partial_{j} \text{beta}^{a}) g^{i}_{a}'
         )
-        function = Function('Tensor')(Symbol('gDD'), Symbol('i'), Symbol('j'))
+        function = sp.Function('Tensor')(sp.Symbol('gDD'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
-            Parser._generate_liedrv(function, 'beta'),
+            nl.Parser._generate_liedrv(function, 'beta'),
             r'\mathcal{L}_\text{beta} g_{i j} = \text{beta}^{a} \partial_{a} g_{i j} + (\partial_{i} \text{beta}^{a}) g_{a j} + (\partial_{j} \text{beta}^{a}) g_{i a}'
         )
 
     def test_srepl_macro(self):
-        delete_namespace()
-        parse(r"""
+        nl.delete_namespace()
+        nl.parse_latex(r"""
             % srepl -persist "<1>'" -> "\text{<1>prime}"
             % srepl -persist "\text{<1..>}_<2>" -> "\text{(<1..>)<2>}"
             % srepl -persist "<1>_{<2>}" -> "<1>_<2>", "<1>_<2>" -> "\text{<1>_<2>}"
@@ -106,21 +104,21 @@ class TestParser(unittest.TestCase):
         """)
         expr = r"x_n^4 + x'_n \exp(x_n y_n^2)"
         self.assertEqual(
-            str(parse_expr(expr)),
+            str(nl.parse_latex(expr)),
             "x_n**4 + xprime_n*exp(x_n*y_n**2)"
         )
-        delete_namespace()
-        parse(r""" % srepl -persist "<1>'^{<2..>}" -> "\text{<1>prime}" """)
+        nl.delete_namespace()
+        nl.parse_latex(r""" % srepl -persist "<1>'^{<2..>}" -> "\text{<1>prime}" """)
         expr = r"v'^{label}"
         self.assertEqual(
-            str(parse_expr(expr)),
+            str(nl.parse_latex(expr)),
             "vprime"
         )
 
     def test_assignment_1(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -diff_type=dD 'vU' (2D), 'wU' (2D)
                 % keydef index [a-z] (2D)
                 T^{ab}_c = \partial_c (v^a w^b)
@@ -132,9 +130,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_2(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -const 'w'
                 % vardef -diff_type=dD 'vU' (2D)
                 % keydef index [a-z] (2D)
@@ -147,9 +145,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_3(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -diff_type=dD -metric 'gDD' (4D)
                 % vardef -diff_type=dD 'vU' (4D)
                 % keydef index [a-z] (4D)
@@ -159,9 +157,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_4(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % keydef basis [x, y]
                 % vardef 'uD' (2D), 'wD' (2D)
                 % keydef index [a-z] (2D)
@@ -178,9 +176,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_5(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % keydef basis [x, y]
                 % vardef 'uD' (2D), 'wD' (2D)
                 % assign -diff_type=symbolic 'uD'
@@ -197,9 +195,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_6(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                     % vardef 'vD' (2D), 'uD' (2D), 'wD' (2D)
                     % keydef index [a-z] (2D)
                     T_{abc} = \vphantom{dD} ((v_a + u_a)_{,b} - w_{a,b})_{,c}
@@ -211,8 +209,8 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_7(self):
-        delete_namespace()
-        parse(r"""
+        nl.delete_namespace()
+        nl.parse_latex(r"""
             % keydef basis [\theta, \phi]
             % vardef -zero 'gDD' (2D)
             % vardef -const 'r'
@@ -251,9 +249,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_8(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -symmetry=sym01 'gDD' (4D)
                 \gamma_{ij} = g_{ij}
             """)),
@@ -264,9 +262,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_9(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef 'TUU' (3D)
                 % vardef 'vD' (2D)
                 % keydef index i (2D)
@@ -279,9 +277,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_10(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -metric 'gDD'
                 % vardef 'ADDD', 'AUUU'
                 B^{a b}_c = A^{a b}_c
@@ -290,9 +288,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_11(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef 'vD'
                 w = v_{x_2}
             """)),
@@ -303,9 +301,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_assignment_12(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % keydef basis [x, y, z]
                 % vardef -zero 'vD'
                 v_z = y^2 + 2y \\
@@ -318,9 +316,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_1(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef 'hUD' (4D)
                 h = h^\mu{}_\mu
             """)),
@@ -331,9 +329,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_2(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -metric 'gUU' (3D)
                 % vardef 'vD' (3D)
                 v^\mu = g^{\mu\nu} v_\nu
@@ -345,9 +343,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_3(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef 'vU' (3D), 'wU' (3D)
                 u_i = \epsilon_{ijk} v^j w^k
             """)),
@@ -358,9 +356,9 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_4(self):
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
                 % vardef -diff_type=dD -metric 'gDD' (4D)
                 % vardef -const 'k'
@@ -368,9 +366,9 @@ class TestParser(unittest.TestCase):
             """)),
             {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
                 % vardef -diff_type=dD -metric 'gDD' (4D)
                 % vardef -const 'k'
@@ -378,9 +376,9 @@ class TestParser(unittest.TestCase):
             """)),
             {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
-        delete_namespace()
+        nl.delete_namespace()
         self.assertEqual(
-            set(parse(r"""
+            set(nl.parse_latex(r"""
                 % vardef -diff_type=dD -symmetry=anti01 'FUU' (4D)
                 % vardef -diff_type=dD -metric 'ghatDD' (4D)
                 % vardef -const 'k'
@@ -390,8 +388,8 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_5_1(self):
-        delete_namespace()
-        parse(r"""
+        nl.delete_namespace()
+        nl.parse_latex(r"""
             % keydef basis [t, r, \theta, \phi]
             % vardef -zero 'gDD' (4D)
             % vardef -const 'G', 'M'
@@ -420,7 +418,7 @@ class TestParser(unittest.TestCase):
         )
 
     def test_example_5_2(self):
-        parse(r"""
+        nl.parse_latex(r"""
             \begin{align}
                 R^\alpha{}_{\beta\mu\nu} &= \partial_\mu \Gamma^\alpha_{\beta\nu} - \partial_\nu \Gamma^\alpha_{\beta\mu} + \Gamma^\alpha_{\mu\gamma}\Gamma^\gamma_{\beta\nu} - \Gamma^\alpha_{\nu\sigma}\Gamma^\sigma_{\beta\mu} \\
                 K &= R^{\alpha\beta\mu\nu} R_{\alpha\beta\mu\nu} \\
@@ -457,7 +455,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(str(GammaUDD[3][2][3]),
             'cos(theta)/sin(theta)'
         )
-        self.assertEqual(str(simplify(K)),
+        self.assertEqual(str(sp.simplify(K)),
             '48*G**2*M**2/r**6'
         )
         assert_equal(R, 0, suppress_message=True)
@@ -467,7 +465,7 @@ class TestParser(unittest.TestCase):
 
     @staticmethod
     def test_example_6_1():
-        parse(r"""
+        nl.parse_latex(r"""
             % keydef basis [r, \theta, \phi]
             \begin{align}
                 \gamma_{ij} &= g_{ij} \\
@@ -483,7 +481,7 @@ class TestParser(unittest.TestCase):
                 assert_equal(KDD[i][j], 0, suppress_message=True)
 
     def test_example_6_2(self):
-        parse(r"""
+        nl.parse_latex(r"""
             \begin{align}
                 R_{ij} &= \partial_k \Gamma^k_{ij} - \partial_j \Gamma^k_{ik}
                     + \Gamma^k_{ij}\Gamma^l_{kl} - \Gamma^l_{ik}\Gamma^k_{lj} \\
@@ -493,14 +491,14 @@ class TestParser(unittest.TestCase):
             \end{align}
         """)
         # assert_equal(E, 0, suppress_message=True)
-        self.assertEqual(simplify(E), 0)
+        self.assertEqual(sp.simplify(E), 0)
         for i in range(3):
             assert_equal(pD[i], 0, suppress_message=True)
 
     @staticmethod
     def test_metric_symmetry():
-        delete_namespace()
-        parse(r"""
+        nl.delete_namespace()
+        nl.parse_latex(r"""
             % vardef -zero 'gDD'
             g_{1 0} = 1 \\
             g_{2 0} = 2
@@ -508,8 +506,8 @@ class TestParser(unittest.TestCase):
         """)
         assert_equal(gDD[0][1], 1, suppress_message=True)
         assert_equal(gDD[0][2], 2, suppress_message=True)
-        delete_namespace()
-        parse(r"""
+        nl.delete_namespace()
+        nl.parse_latex(r"""
             % vardef -zero 'gDD'
             g_{0 1} = 1 \\
             g_{0 2} = 2
@@ -521,8 +519,8 @@ class TestParser(unittest.TestCase):
     @staticmethod
     def test_metric_inverse():
         for DIM in range(2, 5):
-            delete_namespace()
-            parse(r"""
+            nl.delete_namespace()
+            nl.parse_latex(r"""
                 % vardef -metric 'gDD' ({DIM}D)
                 \Delta^a_c = g^{{ab}} g_{{bc}}
             """.format(DIM=DIM))
@@ -531,8 +529,8 @@ class TestParser(unittest.TestCase):
                     value = 1 if i == j else 0
                     assert_equal(DeltaUD[i][j], value, suppress_message=True)
         for DIM in range(2, 5):
-            delete_namespace()
-            parse(r"""
+            nl.delete_namespace()
+            nl.parse_latex(r"""
                 % vardef -metric 'gUU' ({DIM}D)
                 \Delta^a_c = g^{{ab}} g_{{bc}}
             """.format(DIM=DIM))

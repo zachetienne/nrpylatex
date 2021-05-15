@@ -6,11 +6,11 @@
 from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
 from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
 from sympy import pi, exp, log, sqrt, expand, diff, srepr
+from nrpylatex.core.indexed_symbol import symdef
+from nrpylatex.core.functional import uniquify
+from nrpylatex.core.symtree import ExprTree
 from collections import OrderedDict
 from inspect import currentframe
-from nrpylatex.indexed_symbol import symdef
-from nrpylatex.functional import uniquify
-from nrpylatex.symtree import ExprTree
 import re, sys, math, warnings
 
 class Lexer:
@@ -143,11 +143,11 @@ class Lexer:
         self.marker = self.index - len(self.lexeme)
         return self.marker
 
-    def reset(self):
+    def reset(self, index=None):
         """ Reset Token Iterator """
         if not self.sentence:
             raise RuntimeError('cannot reset uninitialized lexer')
-        self.initialize(self.sentence, self.marker)
+        self.initialize(self.sentence, self.marker if index is None else index)
         self.lex()
 
 class Parser:
@@ -197,7 +197,7 @@ class Parser:
     _namespace, _property = OrderedDict(), {}
     continue_parsing = True
 
-    def __init__(self, debug=False):
+    def __init__(self, verbose=False):
         self.lexer = Lexer()
         if not self._property:
             self._property['dimension'] = 3
@@ -210,17 +210,16 @@ class Parser:
         if 'vphantom' not in self._property:
             self._property['vphantom'] = None
         def excepthook(exception_type, exception, traceback):
-            if not debug:
+            if not verbose:
                 # remove traceback from exception message
                 print('%s: %s' % (exception_type.__name__, exception))
             else: sys.__excepthook__(exception_type, exception, traceback)
         sys.excepthook = excepthook
 
-    def parse(self, sentence, expression=False):
+    def parse_latex(self, sentence):
         """ Parse LaTeX Sentence
 
             :arg:    latex sentence (raw string)
-            :arg:    expression mode [default: disabled]
             :return: namespace or expression
         """
         # replace every substring marked 'ignore' with an empty string
@@ -268,28 +267,43 @@ class Parser:
             else: i += 1
         self.lexer.initialize(sentence)
         self.lexer.lex()
-        if expression:
-            tree = ExprTree(self._expression())
-            # remove wrapper function from every scalar quantity, excluding constant(s)
-            for subtree in tree.preorder():
-                subexpr, rank = subtree.expr, len(subtree.expr.args)
-                if rank == 1 and subexpr.func == Function('Tensor'):
-                    subtree.expr = subexpr.args[0]
-                    del subtree.children[:]
-            return tree.reconstruct()
-        self._latex()
+        expression = self._latex()
+        if expression is not None:
+            return expression
         return self._namespace
 
     # <LATEX> -> ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) }*
     def _latex(self):
+        count = 0
         while self.lexer.lexeme:
             if self.peek('OPENING'):
                 self._align()
                 if self.lexer.lexeme: continue
             elif self.accept('COMMENT'):
                 self._macro()
-            else: self._assignment()
+            elif count > 0:
+                self._assignment()
+            else:
+                if any(self.peek(token) for token in ('PAR_SYM', 'COV_SYM', 'LIE_SYM', 'DIACRITIC', 'TEXT_CMD')) \
+                        or (self.peek('LETTER') and self.lexer.lexeme != 'e'):
+                    marker = self.lexer.mark()
+                    self._operator('LHS')
+                    assignment = self.accept('EQUAL')
+                    self.lexer.reset(marker)
+                else: assignment = False
+                if assignment:
+                    self._assignment()
+                else:
+                    tree = ExprTree(self._expression())
+                    for subtree in tree.preorder():
+                        subexpr, rank = subtree.expr, len(subtree.expr.args)
+                        if rank == 1 and subexpr.func == Function('Tensor'):
+                            subtree.expr = subexpr.args[0]
+                            del subtree.children[:]
+                    return tree.reconstruct()
+            count += 1
             if self.accept('RETURN'): pass
+        return None
 
     # <ALIGN> -> <OPENING> ( '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | <ASSIGNMENT> ) }* <CLOSING>
     def _align(self):
@@ -449,7 +463,7 @@ class Parser:
                 if connection in self._namespace:
                     del self._namespace[connection]
                 sentence, position = self.lexer.sentence, self.lexer.mark()
-                self.parse(self._generate_metric(symbol, dimension, diacritic, diff_type))
+                self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
                 self.lexer.initialize(sentence, position)
                 self.lexer.lex()
             if not self.accept('COMMA'): break
@@ -538,7 +552,7 @@ class Parser:
                 if connection in self._namespace:
                     del self._namespace[connection]
                 sentence, position = self.lexer.sentence, self.lexer.mark()
-                self.parse(self._generate_metric(symbol, dimension, diacritic, diff_type))
+                self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
                 self.lexer.initialize(sentence, position)
                 self.lexer.lex()
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
@@ -1064,9 +1078,9 @@ class Parser:
                 sentence, position = self.lexer.sentence, self.lexer.mark()
                 if index[1] == 'U':
                     config = ' % assign -diff_type=dD \'' + symbol + '\''
-                    self.parse(''.join(equation) + config)
+                    self.parse_latex(''.join(equation) + config)
                 else:
-                    self.parse(self._generate_covdrv(function, index[0], symbol, diacritic))
+                    self.parse_latex(self._generate_covdrv(function, index[0], symbol, diacritic))
                 self.lexer.initialize(sentence, position)
                 self.lexer.lex()
         return expression
@@ -1083,7 +1097,7 @@ class Parser:
                 symbol = str(function.args[0])
                 tensor = Tensor(function, self._namespace[symbol].dimension)
                 tensor.weight = self._namespace[symbol].weight
-                self.parse(self._generate_liedrv(function, vector, tensor.weight))
+                self.parse_latex(self._generate_liedrv(function, vector, tensor.weight))
                 self.lexer.initialize(sentence, position)
                 self.lexer.lex()
         return expression
@@ -1218,7 +1232,7 @@ class Parser:
                                 if self._namespace[symbol_RHS].metric:
                                     latex += '-metric=\'' + metric + '\' '
                                 latex += '\'' + symbol + '\''
-                            self.parse(latex)
+                            self.parse_latex(latex)
                             self.lexer.initialize(sentence, position)
                             self.lexer.lex()
                             return function
@@ -1364,7 +1378,7 @@ class Parser:
                     index = next(x for x in alphabet if x not in idx_set)
                 if len(index) > 1:
                     index = '_'.join('\\' + i if len(i) > 1 else i for i in index.split('_'))
-                self.parse('\\partial_{%s} %s = \\partial_{%s} (%s)' % (index, LHS.strip(), index, RHS.strip()))
+                self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)' % (index, LHS.strip(), index, RHS.strip()))
                 self.lexer.initialize(sentence, position)
                 self.lexer.lex()
         function = Function('Tensor')(Symbol(symbol, real=True), *indices)
@@ -1888,7 +1902,7 @@ class CoordinateSystem(list):
     def __eq__(self, other):
         return list.__eq__(self, other) and self.symbol == other.symbol
 
-def ignore_override(option):
+def ignore_warning(option):
     """ Ignore Override Warning
 
         :arg: boolean value
@@ -1906,67 +1920,20 @@ def delete_namespace(**kwargs):
         Parser.continue_parsing = not automatic
     Parser._namespace, Parser._property = {}, {}
 
-# pylint: disable = unused-argument
-inside_ipython = False
-try:
-    get_ipython()
-    inside_ipython = True
-except NameError: pass
-if inside_ipython:
-    from IPython.core.magic import register_cell_magic
-
-    class LaTeX:
-        """ Jupyter Notebook LaTeX Structure """
-
-        def __init__(self, latex):
-            self.latex = latex
-
-        def _repr_latex_(self):
-            return r'\[' + self.latex + r'\]'
-
-    @register_cell_magic
-    def parse_latex(line, cell):
-        try:
-            if not Parser.continue_parsing:
-                delete_namespace()
-            namespace = Parser().parse(cell)
-            frame = currentframe().f_back.f_back
-            for key in namespace:
-                if isinstance(namespace[key], Function('Constant')):
-                    frame.f_globals[key] = namespace[key].args[0]
-                else:
-                    frame.f_globals[key] = namespace[key].structure
-            return LaTeX(cell)
-        except (ParseError, TensorError) as Error:
-            ErrorName = 'ParseError' \
-                if type(Error).__name__ == 'ParseError' else 'TensorError'
-            print(ErrorName + ': ' + str(Error))
-
-def parse_expr(sentence, verbose=False):
-    """ Convert LaTeX Sentence to SymPy Expression (Expression Mode)
-
-        :arg: latex sentence (raw string)
-        :arg: verbose mode [default: disabled]
-        :return: expression
-    """
-    return Parser(verbose).parse(sentence, expression=True)
-
-def parse(sentence, verbose=False, ipython=False):
+def parse_latex(sentence, verbose=False):
     """ Convert LaTeX Sentence to SymPy Expression
 
         :arg: latex sentence (raw string)
         :arg: verbose mode [default: disabled]
-        :arg: ipython mode [default: disabled]
         :return: namespace
     """
-    if not Parser.continue_parsing:
-        delete_namespace()
-    _namespace = Parser._namespace.copy()
-    namespace = Parser(verbose).parse(sentence)
-    key_diff = [key for key in namespace if key not in _namespace]
-    # inject updated namespace into the previous stack frame
+    duplicate_namespace = Parser._namespace.copy()
+    namespace = Parser(verbose).parse_latex(sentence)
+    if not isinstance(namespace, dict):
+        return namespace
+    if not Parser.continue_parsing: delete_namespace()
+    key_diff = [key for key in namespace if key not in duplicate_namespace]
     frame = currentframe().f_back
-    if ipython: frame = frame.f_back.f_back
     for key in namespace:
         if isinstance(namespace[key], Tensor):
             tensor = namespace[key]
@@ -1975,8 +1942,8 @@ def parse(sentence, verbose=False, ipython=False):
                     key_diff.remove(key)
             frame.f_globals[key] = namespace[key].structure
         elif isinstance(namespace[key], Function('Constant')):
-            frame.f_globals[key] = namespace[key].args[0]
             if not verbose and key in key_diff:
                 key_diff.remove(key)
+            frame.f_globals[key] = namespace[key].args[0]
     return tuple(key_diff) if not verbose \
           else tuple(namespace[key] for key in key_diff)

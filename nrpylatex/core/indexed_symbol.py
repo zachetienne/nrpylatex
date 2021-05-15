@@ -2,8 +2,8 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-from nrpylatex.functional import pipe, repeat, flatten, product
-import re, sys, sympy as sp
+from nrpylatex.core.functional import pipe, repeat, flatten, product
+import sympy as sp, re, sys
 
 def symdef(rank, symbol=None, symmetry=None, dimension=None):
     """ Generate an indexed symbol of specified rank and dimension
