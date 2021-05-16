@@ -100,7 +100,7 @@ class Lexer:
         """ Initialize Lexer
 
             :arg: sentence (raw string)
-            :arg: position [default: 0]
+            :arg: position
         """
         self.sentence = sentence
         self.token    = None
@@ -195,26 +195,29 @@ class Parser:
         # <NUMBER>        -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
 
     _namespace, _property = OrderedDict(), {}
-    continue_parsing = True
 
     def __init__(self, verbose=False):
         self.lexer = Lexer()
         if not self._property:
-            self._property['dimension'] = 3
-            self._property['srepl'] = []
-            self._property['basis'] = CoordinateSystem('x')
-            self._property['index'] = {i: self._property['dimension']
-                for i in (chr(i) for i in range(105, 123))} # TODO 105 -> 97
-            self._property['ignore'] = ['\\left', '\\right', '{}', '&']
-            self._property['metric'] = {'': 'g', 'bar': 'g', 'hat': 'g', 'tilde': 'gamma'}
-        if 'vphantom' not in self._property:
-            self._property['vphantom'] = None
+            self.initialize()
         def excepthook(exception_type, exception, traceback):
             if not verbose:
                 # remove traceback from exception message
                 print('%s: %s' % (exception_type.__name__, exception))
             else: sys.__excepthook__(exception_type, exception, traceback)
         sys.excepthook = excepthook
+
+    @staticmethod
+    def initialize(reset=False):
+        if reset: Parser._namespace = OrderedDict()
+        Parser._property['dimension'] = 3
+        Parser._property['srepl'] = []
+        Parser._property['basis'] = CoordinateSystem('x')
+        Parser._property['index'] = {i: Parser._property['dimension']
+            for i in (chr(i) for i in range(105, 123))} # TODO 105 -> 97
+        Parser._property['ignore'] = ['\\left', '\\right', '{}', '&']
+        Parser._property['metric'] = {'': 'g', 'bar': 'g', 'hat': 'g', 'tilde': 'gamma'}
+        Parser._property['vphantom'] = None
 
     def parse_latex(self, sentence):
         """ Parse LaTeX Sentence
@@ -1902,48 +1905,38 @@ class CoordinateSystem(list):
     def __eq__(self, other):
         return list.__eq__(self, other) and self.symbol == other.symbol
 
-def ignore_warning(option):
-    """ Ignore Override Warning
-
-        :arg: boolean value
-    """
-    action = 'ignore' if option else 'default'
-    warnings.filterwarnings(action, category=OverrideWarning)
-
-def delete_namespace(**kwargs):
-    """ Delete Namespace (Package Global Scope)
-
-        :arg: automatic mode [default: disabled]
-    """
-    if 'automatic' in kwargs:
-        automatic = kwargs['automatic']
-        Parser.continue_parsing = not automatic
-    Parser._namespace, Parser._property = {}, {}
-
-def parse_latex(sentence, verbose=False):
+def parse_latex(sentence, reset=False, verbose=False, ignore_warning=False):
     """ Convert LaTeX Sentence to SymPy Expression
 
         :arg: latex sentence (raw string)
-        :arg: verbose mode [default: disabled]
-        :return: namespace
+        :arg: reset namespace
+        :arg: verbose output and visible traceback
+        :arg: ignore warning
+        :return: namespace diff or expression
     """
+    if reset: Parser.initialize(reset=True)
+    action = 'ignore' if ignore_warning else 'default'
+    warnings.filterwarnings(action, category=OverrideWarning)
+
     duplicate_namespace = Parser._namespace.copy()
     namespace = Parser(verbose).parse_latex(sentence)
     if not isinstance(namespace, dict):
         return namespace
-    if not Parser.continue_parsing: delete_namespace()
     key_diff = [key for key in namespace if key not in duplicate_namespace]
+
     frame = currentframe().f_back
     for key in namespace:
         if isinstance(namespace[key], Tensor):
             tensor = namespace[key]
             if not tensor.equation and tensor.rank == 0:
-                if not verbose and key in key_diff:
+                if key in key_diff:
                     key_diff.remove(key)
             frame.f_globals[key] = namespace[key].structure
         elif isinstance(namespace[key], Function('Constant')):
-            if not verbose and key in key_diff:
+            if key in key_diff:
                 key_diff.remove(key)
             frame.f_globals[key] = namespace[key].args[0]
+
+    if not key_diff: return None
     return tuple(key_diff) if not verbose \
           else tuple(namespace[key] for key in key_diff)
