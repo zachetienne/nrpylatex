@@ -28,20 +28,13 @@ class ParseMagic(Magics):
             namespace = nl.Parser(verbose).parse_latex(sentence)
             if not isinstance(namespace, dict):
                 return namespace
-            key_diff = [key for key in namespace if key not in duplicate_namespace]
             for key in namespace:
                 if isinstance(namespace[key], nl.Tensor):
-                    tensor = namespace[key]
-                    if not tensor.equation and tensor.rank == 0:
-                        if key in key_diff:
-                            key_diff.remove(key)
                     self.shell.user_ns[key] = namespace[key].structure
                 elif isinstance(namespace[key], sp.Function('Constant')):
-                    if key in key_diff:
-                        key_diff.remove(key)
                     self.shell.user_ns[key] = namespace[key].args[0]
-            return ParseOutput(key_diff if not verbose \
-                else [namespace[key] for key in key_diff], sentence)
+            return ParseOutput(namespace.keys() if not verbose \
+                else namespace.values(), sentence)
         except (nl.ParseError, nl.TensorError) as e:
             print(type(e).__name__ + ': ' + str(e))
 
