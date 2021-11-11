@@ -7,7 +7,7 @@ with open('README.md') as README:
 
 setup(
     name="nrpylatex",
-    version="1.0.8",
+    version="1.0.7",
     description="LaTeX Interface to SymPy (CAS) for General Relativity",
     long_description=long_description,
     long_description_content_type="text/markdown",
