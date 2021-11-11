@@ -20,28 +20,25 @@ class ParseMagic(Magics):
                 verbose = True
             elif arg == 'ignore-warning':
                 ignore_warning = True
-        action = 'ignore' if ignore_warning else 'default'
-        warnings.filterwarnings(action, category=nl.OverrideWarning)
         try:
             sentence = line if cell is None else cell
-            duplicate_namespace = nl.Parser._namespace.copy()
+            state = tuple(nl.Parser._namespace.keys())
             namespace = nl.Parser(verbose).parse_latex(sentence)
             if not isinstance(namespace, dict):
                 return namespace
-            key_diff = [key for key in namespace if key not in duplicate_namespace]
             for key in namespace:
                 if isinstance(namespace[key], nl.Tensor):
-                    tensor = namespace[key]
-                    if not tensor.equation and tensor.rank == 0:
-                        if key in key_diff:
-                            key_diff.remove(key)
                     self.shell.user_ns[key] = namespace[key].structure
                 elif isinstance(namespace[key], sp.Function('Constant')):
-                    if key in key_diff:
-                        key_diff.remove(key)
                     self.shell.user_ns[key] = namespace[key].args[0]
-            return ParseOutput(key_diff if not verbose \
-                else [namespace[key] for key in key_diff], sentence)
+            if not namespace: return None
+            if ignore_warning:
+                return ParseOutput((namespace.values() if verbose else namespace.keys()), sentence)
+            overridden = [key for key in state if key in namespace]
+            if len(overridden) > 0:
+                warnings.warn('some variable(s) in the namespace were overridden', nl.OverrideWarning)
+            return ParseOutput((('*' if symbol in overridden else '') + str(symbol)
+                for symbol in (namespace.values() if verbose else namespace.keys())), sentence)
         except (nl.ParseError, nl.TensorError) as e:
             print(type(e).__name__ + ': ' + str(e))
 

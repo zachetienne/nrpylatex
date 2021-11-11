@@ -130,7 +130,7 @@ class TestParser(unittest.TestCase):
                 % keydef index [a-z] (2D)
                 T^a_c = \partial_c (v^a w)
             """)),
-            {'vU', 'vU_dD', 'TUD'}
+            {'w', 'vU', 'vU_dD', 'TUD'}
         )
         self.assertEqual(str(TUD),
             '[[vU_dD00*w, vU_dD01*w], [vU_dD10*w, vU_dD11*w]]'
@@ -159,7 +159,7 @@ class TestParser(unittest.TestCase):
                 % assign -diff_type=dD 'wD', 'vD'
                 T_{ab} = \partial_b v_a
             """)),
-            {'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
+            {'x', 'y', 'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
         )
         self.assertEqual(str(TDD),
             '[[wD_dD00 + 2*x + 2, wD_dD01], [wD_dD10 + y/(2*sqrt(x)), wD_dD11 + sqrt(x)]]'
@@ -177,7 +177,7 @@ class TestParser(unittest.TestCase):
                 v_a = u_a + w_a \\
                 T_{bc} = \vphantom{dD} \partial_c v_b
             """)),
-            {'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
+            {'x', 'y', 'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
         )
         self.assertEqual(str(TDD),
             '[[wD_dD00 + 2*x + 2, wD_dD01], [wD_dD10 + y/(2*sqrt(x)), wD_dD11 + sqrt(x)]]'
@@ -291,7 +291,7 @@ class TestParser(unittest.TestCase):
                 v_z = y^2 + 2y \\
                 w = v_{x_2}
             """)),
-            {'vD', 'w'}
+            {'vD', 'y', 'w'}
         )
         self.assertEqual(str(w),
             'y**2 + 2*y'
@@ -342,7 +342,7 @@ class TestParser(unittest.TestCase):
                 % vardef -const 'k'
                 J^\mu = (4\pi k)^{-1} F^{\mu\nu}_{;\nu}
             """)),
-            {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
+            {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'k', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
         self.assertEqual(
             set(parse_latex(r"""
@@ -351,7 +351,7 @@ class TestParser(unittest.TestCase):
                 % vardef -const 'k'
                 J^\mu = (4\pi k)^{-1} \nabla_\nu F^{\mu\nu}
             """)),
-            {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
+            {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'k', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
         self.assertEqual(
             set(parse_latex(r"""
@@ -360,7 +360,7 @@ class TestParser(unittest.TestCase):
                 % vardef -const 'k'
                 J^\mu = (4\pi k)^{-1} \hat{\nabla}_\nu F^{\mu\nu}
             """)),
-            {'FUU', 'ghatUU', 'ghatdet', 'epsilonUUUU',  'ghatDD', 'FUU_dD', 'ghatDD_dD', 'GammahatUDD', 'FUU_cdhatD', 'JU'}
+            {'FUU', 'ghatUU', 'ghatdet', 'epsilonUUUU', 'k',  'ghatDD', 'FUU_dD', 'ghatDD_dD', 'GammahatUDD', 'FUU_cdhatD', 'JU'}
         )
 
     def test_example_5_1(self):

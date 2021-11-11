@@ -3,6 +3,7 @@
 # Email:  ksible *at* outlook *dot* com
 
 # pylint: disable = attribute-defined-outside-init, protected-access, exec-used
+from token import ISNONTERMINAL
 from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
 from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
 from sympy import pi, exp, log, sqrt, expand, diff, srepr
@@ -198,6 +199,7 @@ class Parser:
 
     def __init__(self, verbose=False):
         self.lexer = Lexer()
+        self.state = set()
         if not self._property:
             self.initialize()
         def excepthook(exception_type, exception, traceback):
@@ -209,12 +211,12 @@ class Parser:
 
     @staticmethod
     def initialize(reset=False):
-        if reset: Parser._namespace = OrderedDict()
+        if reset: Parser._namespace.clear()
         Parser._property['dimension'] = 3
         Parser._property['srepl'] = []
         Parser._property['basis'] = CoordinateSystem('x')
         Parser._property['index'] = {i: Parser._property['dimension']
-            for i in (chr(i) for i in range(105, 123))} # TODO 105 -> 97
+            for i in (chr(i) for i in range(105, 123))} # 105 -> 97
         Parser._property['ignore'] = ['\\left', '\\right', '{}', '&']
         Parser._property['metric'] = {'': 'g', 'bar': 'g', 'hat': 'g', 'tilde': 'gamma'}
         Parser._property['vphantom'] = None
@@ -273,7 +275,7 @@ class Parser:
         expression = self._latex()
         if expression is not None:
             return expression
-        return self._namespace
+        return {symbol: self._namespace[symbol] for symbol in self.state}
 
     # <LATEX> -> ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) }*
     def _latex(self):
@@ -450,6 +452,7 @@ class Parser:
                 self.expect('RPAREN')
             if symmetry == 'const':
                 self._namespace[symbol] = Function('Constant')(Symbol(symbol, real=True))
+                self.state.add(symbol)
             else:
                 function = Function('Tensor')(Symbol(symbol, real=True))
                 tensor = Tensor(function, dimension, diff_type=diff_type, metric=metric, weight=weight)
@@ -462,9 +465,9 @@ class Parser:
             if symmetry == 'metric':
                 diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
-                connection = 'Gamma' + diacritic + 'UDD'
-                if connection in self._namespace:
-                    del self._namespace[connection]
+                # connection = 'Gamma' + diacritic + 'UDD'
+                # if connection in self._namespace:
+                #     del self._namespace[connection]
                 sentence, position = self.lexer.sentence, self.lexer.mark()
                 self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
                 self.lexer.initialize(sentence, position)
@@ -481,7 +484,7 @@ class Parser:
         elif self.accept('INDEX_KWRD'):
             if self.accept('DEFAULT'):
                 self._property['index'] = {i: self._property['dimension']
-                    for i in (chr(i) for i in range(105, 123))} # TODO 105 -> 97
+                    for i in (chr(i) for i in range(105, 123))} # 105 -> 97
             else: self._index()
         else:
             sentence, position = self.lexer.sentence, self.lexer.mark()
@@ -551,9 +554,9 @@ class Parser:
                 symmetry = tensor.symmetry = 'sym01'
                 diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
-                connection = 'Gamma' + diacritic + 'UDD'
-                if connection in self._namespace:
-                    del self._namespace[connection]
+                # connection = 'Gamma' + diacritic + 'UDD'
+                # if connection in self._namespace:
+                #     del self._namespace[connection]
                 sentence, position = self.lexer.sentence, self.lexer.mark()
                 self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
                 self.lexer.initialize(sentence, position)
@@ -681,18 +684,18 @@ class Parser:
         exec('from sympy import *', global_env)
         # evaluate every implied summation and update namespace
         exec(LHS_RHS, global_env)
+        override = True
         symbol, indices = str(function.args[0]), function.args[1:]
         if any(isinstance(index, Integer) for index in indices):
             tensor = self._namespace[symbol]
             tensor.structure = global_env[symbol]
+            override = False
         else:
             diff_type = self._namespace[symbol].diff_type if symbol in self._namespace else None
             tensor = Tensor(function, dimension, structure=global_env[symbol],
                 equation=equation, diff_type=diff_type)
-        if symbol in self._namespace:
-            # throw warning on duplicate namespace variable
-            warnings.warn(symbol, OverrideWarning)
         self._namespace.update({symbol: tensor})
+        self.state.add(symbol)
 
     # <EXPRESSION> -> <TERM> { ( '+' | '-' ) <TERM> }*
     def _expression(self):
@@ -1352,10 +1355,8 @@ class Parser:
         if not tensor.structure:
             tensor.structure = Symbol(symbol, real=True) if tensor.rank == 0 \
                 else symdef(tensor.rank, symbol if not zero else None, tensor.symmetry, dimension)
-        if symbol in self._namespace:
-            # throw warning on duplicate namespace variable
-            warnings.warn(symbol, OverrideWarning)
         self._namespace[symbol] = tensor
+        self.state.add(symbol)
 
     def _define_pardrv(self, function, location, diff_type, index):
         if not diff_type or diff_type == 'symbolic':
@@ -1741,7 +1742,7 @@ class OverrideWarning(UserWarning):
     """ Overridden Namespace Variable """
 # pylint: disable=unused-argument
 def _formatwarning(message, category, filename=None, lineno=None, file=None, line=None):
-    return '%s: \'%s\'\n' % (category.__name__, message)
+    return '%s: %s\n' % (category.__name__, message)
 warnings.formatwarning = _formatwarning
 warnings.simplefilter('always', OverrideWarning)
 
@@ -1915,28 +1916,24 @@ def parse_latex(sentence, reset=False, verbose=False, ignore_warning=False):
         :return: namespace diff or expression
     """
     if reset: Parser.initialize(reset=True)
-    action = 'ignore' if ignore_warning else 'default'
-    warnings.filterwarnings(action, category=OverrideWarning)
 
-    duplicate_namespace = Parser._namespace.copy()
+    state = tuple(Parser._namespace.keys())
     namespace = Parser(verbose).parse_latex(sentence)
     if not isinstance(namespace, dict):
         return namespace
-    key_diff = [key for key in namespace if key not in duplicate_namespace]
 
     frame = currentframe().f_back
     for key in namespace:
         if isinstance(namespace[key], Tensor):
-            tensor = namespace[key]
-            if not tensor.equation and tensor.rank == 0:
-                if key in key_diff:
-                    key_diff.remove(key)
             frame.f_globals[key] = namespace[key].structure
         elif isinstance(namespace[key], Function('Constant')):
-            if key in key_diff:
-                key_diff.remove(key)
             frame.f_globals[key] = namespace[key].args[0]
 
-    if not key_diff: return None
-    return tuple(key_diff) if not verbose \
-          else tuple(namespace[key] for key in key_diff)
+    if not namespace: return None
+    if ignore_warning:
+        return tuple(namespace.values() if verbose else namespace.keys())
+    overridden = [key for key in state if key in namespace]
+    if len(overridden) > 0:
+        warnings.warn('some variable(s) in the namespace were overridden', OverrideWarning)
+    return tuple(('*' if symbol in overridden else '') + str(symbol)
+        for symbol in (namespace.values() if verbose else namespace.keys()))
