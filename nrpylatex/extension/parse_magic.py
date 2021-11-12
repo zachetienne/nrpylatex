@@ -37,8 +37,13 @@ class ParseMagic(Magics):
             overridden = [key for key in state if key in namespace]
             if len(overridden) > 0:
                 warnings.warn('some variable(s) in the namespace were overridden', nl.OverrideWarning)
+            if verbose:
+                for symbol in namespace:
+                    if namespace[symbol].symbol in overridden:
+                        namespace[symbol].overridden = True
+                return ParseOutput(namespace.values(), sentence)
             return ParseOutput((('*' if symbol in overridden else '') + str(symbol)
-                for symbol in (namespace.values() if verbose else namespace.keys())), sentence)
+                for symbol in namespace.keys()), sentence)
         except (nl.ParseError, nl.TensorError) as e:
             print(type(e).__name__ + ': ' + str(e))
 

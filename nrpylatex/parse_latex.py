@@ -202,6 +202,8 @@ class Parser:
         self.state = set()
         if not self._property:
             self.initialize()
+        for symbol in self._namespace:
+            self._namespace[symbol].overridden = False
         def excepthook(exception_type, exception, traceback):
             if not verbose:
                 # remove traceback from exception message
@@ -1751,6 +1753,7 @@ class Tensor:
 
     def __init__(self, function, dimension=None, structure=None, equation=None,
             symmetry=None, diff_type=None, metric=None, weight=None):
+        self.overridden  = False
         self.symbol      = str(function.args[0])
         self.rank        = 0
         for symbol in re.split(r'_d|_dup|_cd|_ld', self.symbol):
@@ -1870,9 +1873,10 @@ class Tensor:
         return ''.join(latex)
 
     def __repr__(self):
+        symbol = ('*' if self.overridden else '') + self.symbol
         if self.rank == 0:
-            return 'Scalar(%s)' % self.symbol
-        return 'Tensor(%s, %dD)' % (self.symbol, self.dimension)
+            return 'Scalar(%s)' % symbol
+        return 'Tensor(%s, %dD)' % (symbol, self.dimension)
 
     __str__ = __repr__
 
@@ -1935,5 +1939,10 @@ def parse_latex(sentence, reset=False, verbose=False, ignore_warning=False):
     overridden = [key for key in state if key in namespace]
     if len(overridden) > 0:
         warnings.warn('some variable(s) in the namespace were overridden', OverrideWarning)
+    if verbose:
+        for symbol in namespace:
+            if namespace[symbol].symbol in overridden:
+                namespace[symbol].overridden = True
+        return tuple(namespace.values())
     return tuple(('*' if symbol in overridden else '') + str(symbol)
-        for symbol in (namespace.values() if verbose else namespace.keys()))
+        for symbol in namespace.keys())
