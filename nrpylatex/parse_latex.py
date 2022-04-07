@@ -3,7 +3,6 @@
 # Email:  ksible *at* outlook *dot* com
 
 # pylint: disable = attribute-defined-outside-init, protected-access, exec-used
-from token import ISNONTERMINAL
 from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
 from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
 from sympy import pi, exp, log, sqrt, expand, diff, srepr
@@ -97,7 +96,7 @@ class Lexer:
         self.regex = re.compile('|'.join(['(?P<%s>%s)' % pattern for pattern in self.token_dict]))
         self.token_dict = dict(self.token_dict)
 
-    def initialize(self, sentence, position=0):
+    def initialize(self, sentence, position=0, whitespace=False):
         """ Initialize Lexer
 
             :arg: sentence (raw string)
@@ -108,6 +107,7 @@ class Lexer:
         self.lexeme   = None
         self.marker   = None
         self.index    = position
+        self.whitespace = whitespace
 
     def tokenize(self):
         """ Tokenize Sentence
@@ -120,7 +120,7 @@ class Lexer:
                 raise ParseError('unexpected \'%s\' at position %d' %
                     (self.sentence[self.index], self.index), self.sentence, self.index)
             self.index = token.end()
-            if token.lastgroup != 'WHITESPACE':
+            if self.whitespace or token.lastgroup != 'WHITESPACE':
                 self.lexeme = token.group()
                 yield token.lastgroup
 
@@ -150,6 +150,21 @@ class Lexer:
             raise RuntimeError('cannot reset uninitialized lexer')
         self.initialize(self.sentence, self.marker if index is None else index)
         self.lex()
+
+    def new_context(self):
+        return self.LexerContext(self)
+
+    class LexerContext():
+
+        def __init__(self, lexer):
+            self.lexer = lexer
+            self.state = (lexer.sentence, lexer.mark(), lexer.whitespace)
+
+        def __enter__(self): return
+
+        def __exit__(self, exc_type, exc_value, exc_tb):
+            self.lexer.initialize(*self.state)
+            self.lexer.lex()
 
 class Parser:
     """ LaTeX Parser
@@ -287,7 +302,9 @@ class Parser:
                 self._align()
                 if self.lexer.lexeme: continue
             elif self.accept('COMMENT'):
+                self.lexer.whitespace = True
                 self._macro()
+                self.lexer.whitespace = False
             elif count > 0:
                 self._assignment()
             else:
@@ -470,10 +487,13 @@ class Parser:
                 # connection = 'Gamma' + diacritic + 'UDD'
                 # if connection in self._namespace:
                 #     del self._namespace[connection]
-                sentence, position = self.lexer.sentence, self.lexer.mark()
-                self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
-                self.lexer.initialize(sentence, position)
-                self.lexer.lex()
+                # sentence, position = self.lexer.sentence, self.lexer.mark()
+                # self.lexer.whitespace = False
+                with self.lexer.new_context():
+                    self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
+                # self.lexer.whitespace = True
+                # self.lexer.initialize(sentence, position)
+                # self.lexer.lex()
             if not self.accept('COMMA'): break
 
     # <KEYDEF> -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
@@ -559,10 +579,11 @@ class Parser:
                 # connection = 'Gamma' + diacritic + 'UDD'
                 # if connection in self._namespace:
                 #     del self._namespace[connection]
-                sentence, position = self.lexer.sentence, self.lexer.mark()
-                self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
-                self.lexer.initialize(sentence, position)
-                self.lexer.lex()
+                # sentence, position = self.lexer.sentence, self.lexer.mark()
+                with self.lexer.new_context():
+                    self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
+                # self.lexer.initialize(sentence, position)
+                # self.lexer.lex()
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and diff_type:
                 rank = 0
@@ -686,12 +707,10 @@ class Parser:
         exec('from sympy import *', global_env)
         # evaluate every implied summation and update namespace
         exec(LHS_RHS, global_env)
-        override = True
         symbol, indices = str(function.args[0]), function.args[1:]
         if any(isinstance(index, Integer) for index in indices):
             tensor = self._namespace[symbol]
             tensor.structure = global_env[symbol]
-            override = False
         else:
             diff_type = self._namespace[symbol].diff_type if symbol in self._namespace else None
             tensor = Tensor(function, dimension, structure=global_env[symbol],
@@ -1083,14 +1102,12 @@ class Parser:
                 equation[3] += '_{' + covdrv_index + '} '
             equation[0], equation[3] = equation[0] + latex, equation[3] + latex
             if location == 'RHS' and (self._property['vphantom'] or symbol not in self._namespace):
-                sentence, position = self.lexer.sentence, self.lexer.mark()
-                if index[1] == 'U':
-                    config = ' % assign -diff_type=dD \'' + symbol + '\''
-                    self.parse_latex(''.join(equation) + config)
-                else:
-                    self.parse_latex(self._generate_covdrv(function, index[0], symbol, diacritic))
-                self.lexer.initialize(sentence, position)
-                self.lexer.lex()
+                with self.lexer.new_context():
+                    if index[1] == 'U':
+                        config = ' % assign -diff_type=dD \'' + symbol + '\''
+                        self.parse_latex(''.join(equation) + config)
+                    else:
+                        self.parse_latex(self._generate_covdrv(function, index[0], symbol, diacritic))
         return expression
 
     # <LIEDRV> -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
@@ -1207,42 +1224,40 @@ class Parser:
                     for suffix in product(*('UD' if i == 'U' else 'DU' for _, i in Tensor.indexing(function))):
                         symbol_RHS = base_symbol + ''.join(suffix)
                         if symbol_RHS in self._namespace:
-                            sentence, position = self.lexer.sentence, self.lexer.mark()
-                            diacritic = 'bar'   if 'bar'   in symbol \
-                                   else 'hat'   if 'hat'   in symbol \
-                                   else 'tilde' if 'tilde' in symbol \
-                                   else ''
-                            metric = self._namespace[symbol_RHS].metric if self._namespace[symbol_RHS].metric else \
-                                self._property['metric'][diacritic] + diacritic
-                            indexing_LHS = indexing_RHS = [str(index) for index in indexing]
-                            alphabet = (chr(97 + n) for n in range(26))
-                            for i, index in enumerate(indexing_LHS):
-                                if index in indexing_LHS[:i]:
-                                    indexing_LHS[i] = next(x for x in alphabet if x not in indexing_LHS)
-                            function_LHS = Function('Tensor')(function.args[0],
-                                *(Symbol(i) for i in indexing_LHS))
-                            latex = Tensor.latex_format(function_LHS) + ' = '
-                            for i, (idx, pos) in enumerate(Tensor.indexing(function_LHS)):
-                                if pos != suffix[i]:
-                                    indexing_RHS[i] = next(x for x in alphabet if x not in indexing_LHS)
-                                    if len(str(idx)) > 1:
-                                        idx = '_'.join('\\' + i if len(i) > 1 else i for i in str(idx).split('_'))
-                                    if pos == 'U':
-                                        latex += '\\text{%s}^{%s %s} ' % (metric, idx, indexing_RHS[i])
-                                    else:
-                                        latex += '\\text{%s}_{%s %s} ' % (metric, idx, indexing_RHS[i])
-                            latex += Tensor.latex_format(Function('Tensor')(Symbol(symbol_RHS, real=True), *indexing_RHS))
-                            diff_type = self._namespace[symbol_RHS].diff_type
-                            if diff_type or self._namespace[symbol_RHS].metric:
-                                latex += ' % assign '
-                                if diff_type:
-                                    latex += '-diff_type=' + diff_type + ' '
-                                if self._namespace[symbol_RHS].metric:
-                                    latex += '-metric=\'' + metric + '\' '
-                                latex += '\'' + symbol + '\''
-                            self.parse_latex(latex)
-                            self.lexer.initialize(sentence, position)
-                            self.lexer.lex()
+                            with self.lexer.new_context():
+                                diacritic = 'bar'   if 'bar'   in symbol \
+                                    else 'hat'   if 'hat'   in symbol \
+                                    else 'tilde' if 'tilde' in symbol \
+                                    else ''
+                                metric = self._namespace[symbol_RHS].metric if self._namespace[symbol_RHS].metric else \
+                                    self._property['metric'][diacritic] + diacritic
+                                indexing_LHS = indexing_RHS = [str(index) for index in indexing]
+                                alphabet = (chr(97 + n) for n in range(26))
+                                for i, index in enumerate(indexing_LHS):
+                                    if index in indexing_LHS[:i]:
+                                        indexing_LHS[i] = next(x for x in alphabet if x not in indexing_LHS)
+                                function_LHS = Function('Tensor')(function.args[0],
+                                    *(Symbol(i) for i in indexing_LHS))
+                                latex = Tensor.latex_format(function_LHS) + ' = '
+                                for i, (idx, pos) in enumerate(Tensor.indexing(function_LHS)):
+                                    if pos != suffix[i]:
+                                        indexing_RHS[i] = next(x for x in alphabet if x not in indexing_LHS)
+                                        if len(str(idx)) > 1:
+                                            idx = '_'.join('\\' + i if len(i) > 1 else i for i in str(idx).split('_'))
+                                        if pos == 'U':
+                                            latex += '\\text{%s}^{%s %s} ' % (metric, idx, indexing_RHS[i])
+                                        else:
+                                            latex += '\\text{%s}_{%s %s} ' % (metric, idx, indexing_RHS[i])
+                                latex += Tensor.latex_format(Function('Tensor')(Symbol(symbol_RHS, real=True), *indexing_RHS))
+                                diff_type = self._namespace[symbol_RHS].diff_type
+                                if diff_type or self._namespace[symbol_RHS].metric:
+                                    latex += ' % assign '
+                                    if diff_type:
+                                        latex += '-diff_type=' + diff_type + ' '
+                                    if self._namespace[symbol_RHS].metric:
+                                        latex += '-metric=\'' + metric + '\' '
+                                    latex += '\'' + symbol + '\''
+                                self.parse_latex(latex)
                             return function
                     raise ParseError('cannot index undefined tensor \'%s\' at position %d' %
                         (symbol, position), sentence, position)
@@ -1369,24 +1384,22 @@ class Parser:
             else ''
         tensor, index = self._namespace[symbol], str(index)
         symbol = symbol + ('' if suffix in symbol else suffix) + 'D'
-        sentence, position = self.lexer.sentence, self.lexer.mark()
-        if symbol not in self._namespace:
-            if location == 'RHS' and tensor.equation:
-                LHS, RHS = tensor.equation[0]
-                tree, idx_set = ExprTree(tensor.equation[1]), set()
-                for subtree in tree.preorder():
-                    subexpr = subtree.expr
-                    if subexpr.func == Function('Tensor'):
-                        idx_set.update(subexpr.args[1:])
-                idx_set = {str(i) for i in idx_set}
-                if index in idx_set:
-                    alphabet = (chr(97 + n) for n in range(26))
-                    index = next(x for x in alphabet if x not in idx_set)
-                if len(index) > 1:
-                    index = '_'.join('\\' + i if len(i) > 1 else i for i in index.split('_'))
-                self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)' % (index, LHS.strip(), index, RHS.strip()))
-                self.lexer.initialize(sentence, position)
-                self.lexer.lex()
+        with self.lexer.new_context():
+            if symbol not in self._namespace:
+                if location == 'RHS' and tensor.equation:
+                    LHS, RHS = tensor.equation[0]
+                    tree, idx_set = ExprTree(tensor.equation[1]), set()
+                    for subtree in tree.preorder():
+                        subexpr = subtree.expr
+                        if subexpr.func == Function('Tensor'):
+                            idx_set.update(subexpr.args[1:])
+                    idx_set = {str(i) for i in idx_set}
+                    if index in idx_set:
+                        alphabet = (chr(97 + n) for n in range(26))
+                        index = next(x for x in alphabet if x not in idx_set)
+                    if len(index) > 1:
+                        index = '_'.join('\\' + i if len(i) > 1 else i for i in index.split('_'))
+                    self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)' % (index, LHS.strip(), index, RHS.strip()))
         function = Function('Tensor')(Symbol(symbol, real=True), *indices)
         if symbol not in self._namespace:
             symmetry = 'nosym'
@@ -1708,11 +1721,15 @@ class Parser:
         return symbol[1:] if symbol[0] == '\\' else symbol
 
     def peek(self, token):
+        if self.lexer.token == 'WHITESPACE':
+            self.lexer.lex()
         return self.lexer.token == token
 
     def accept(self, token):
         if self.peek(token):
             self.lexer.lex()
+            if self.lexer.token == 'WHITESPACE':
+                self.lexer.lex()
             return True
         return False
 
