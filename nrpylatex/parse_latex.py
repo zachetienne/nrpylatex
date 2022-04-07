@@ -30,11 +30,11 @@ class Lexer:
             r'\\[uU]psilon', r'\\[pP]hi', r'\\[cC]hi', r'\\[pP]si', r'\\[oO]mega', r'\\varepsilon', r'\\varkappa',
             r'\\varphi', r'\\varpi', r'\\varrho', r'\\varsigma', r'\\vartheta', r'[a-zA-Z]'))
         self.token_dict = [
+            ('EOL',             r'\r?\n'),
             ('WHITESPACE',      r'\s+'),
             ('STRING',          r'\"[^\"]*\"'),
             ('GROUP',           r'\<[0-9]+(\.{2})?\>'),
             ('DIMENSION',       r'[2-9][0-9]*D'),
-            ('VARIABLE',        r'\'[a-zA-Z][_a-zA-Z]*\''),
             ('RATIONAL',        r'\-?[0-9]+\/\-?[1-9][0-9]*'),
             ('DECIMAL',         r'\-?[0-9]+\.[0-9]+'),
             ('INTEGER',         r'\-?[0-9]+'),
@@ -120,7 +120,7 @@ class Lexer:
                 raise ParseError('unexpected \'%s\' at position %d' %
                     (self.sentence[self.index], self.index), self.sentence, self.index)
             self.index = token.end()
-            if self.whitespace or token.lastgroup != 'WHITESPACE':
+            if self.whitespace or token.lastgroup not in ('WHITESPACE', 'EOL'):
                 self.lexeme = token.group()
                 yield token.lastgroup
 
@@ -148,7 +148,7 @@ class Lexer:
         """ Reset Token Iterator """
         if not self.sentence:
             raise RuntimeError('cannot reset uninitialized lexer')
-        self.initialize(self.sentence, self.marker if index is None else index)
+        self.initialize(self.sentence, self.marker if index is None else index, self.whitespace)
         self.lex()
 
     def new_context(self):
@@ -208,6 +208,7 @@ class Parser:
         # <INDEXING_2>    -> <LETTER> | <INTEGER> | '{' <INDEXING_1> '}'
         # <INDEXING_3>    -> <INDEXING_2> | '{' { <INDEXING_1> }+ '}'
         # <INDEXING_4>    -> <INDEXING_2> | '{' ( ',' | ';' ) { <INDEXING_1> }+ | { <INDEXING_1> }+ [ ( ',' | ';' ) { <INDEXING_1> }+ ] '}'
+        # <VARIABLE>      -> <LETTER> { <LETTER> | <UNDERSCORE> }*
         # <NUMBER>        -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
 
     _namespace, _property = OrderedDict(), {}
@@ -251,8 +252,10 @@ class Parser:
         self.lexer.initialize('\n'.join(['srepl "%s" -> "%s"' % (old, new)
             for (old, new) in self._property['srepl']] + [sentence]))
         self.lexer.lex()
+        self.lexer.whitespace = True
         for _ in self._property['srepl']:
             self._srepl()
+        self.lexer.whitespace = False
         sentence = self.lexer.sentence[self.lexer.mark():]
         stack = []; i = i_1 = i_2 = i_3 = 0
         while i < len(sentence):
@@ -334,7 +337,9 @@ class Parser:
         self.expect('OPENING')
         while not self.accept('CLOSING'):
             if self.accept('COMMENT'):
+                self.lexer.whitespace = True
                 self._macro()
+                self.lexer.whitespace = False
             else: self._assignment()
             if self.accept('RETURN'): pass
 
@@ -379,7 +384,7 @@ class Parser:
             self.lexer.mark()
             self.expect('STRING')
             self.lexer.reset(); self.lexer.mark()
-            lexer = Lexer(); lexer.initialize(old)
+            lexer = Lexer(); lexer.initialize(old, whitespace=True)
             substr_syntax = []
             for token in lexer.tokenize():
                 substr_syntax.append((lexer.lexeme, token))
@@ -437,6 +442,7 @@ class Parser:
             self.lexer.sentence = sentence
             self.lexer.reset(); self.lexer.lex()
             if not self.accept('COMMA'): break
+        self.accept('EOL')
 
     # <VARDEF> -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> { ',' <VARIABLE> }* [ '(' <DIMENSION> ')' ]
     def _vardef(self):
@@ -457,12 +463,7 @@ class Parser:
             elif option == 'weight':
                 weight = value
         while True:
-            symbol = self.lexer.lexeme[1:-1]
-            if not symbol and self.peek('VARIABLE'):
-                sentence, position = self.lexer.sentence, self.lexer.mark()
-                raise ParseError('empty variable at position %d' %
-                    position, sentence, position)
-            self.expect('VARIABLE')
+            symbol = self._variable()
             dimension = self._property['dimension']
             if self.accept('LPAREN'):
                 dimension = self.lexer.lexeme[:-1]
@@ -484,17 +485,10 @@ class Parser:
             if symmetry == 'metric':
                 diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
-                # connection = 'Gamma' + diacritic + 'UDD'
-                # if connection in self._namespace:
-                #     del self._namespace[connection]
-                # sentence, position = self.lexer.sentence, self.lexer.mark()
-                # self.lexer.whitespace = False
                 with self.lexer.new_context():
                     self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
-                # self.lexer.whitespace = True
-                # self.lexer.initialize(sentence, position)
-                # self.lexer.lex()
             if not self.accept('COMMA'): break
+        self.accept('EOL')
 
     # <KEYDEF> -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
     def _keydef(self):
@@ -512,6 +506,7 @@ class Parser:
             sentence, position = self.lexer.sentence, self.lexer.mark()
             raise ParseError('unexpected keyword at position %d' %
                 position, sentence, position)
+        self.accept('EOL')
 
     # <ASSIGN> -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
     def _assign(self):
@@ -529,12 +524,7 @@ class Parser:
             elif option == 'weight':
                 weight = value
         while True:
-            symbol = self.lexer.lexeme[1:-1]
-            if not symbol and self.peek('VARIABLE'):
-                sentence, position = self.lexer.sentence, self.lexer.mark()
-                raise ParseError('empty variable at position %d' %
-                    position, sentence, position)
-            self.expect('VARIABLE')
+            symbol = self._variable()
             if symbol not in self._namespace:
                 rank = 0
                 for symbol in re.split(r'_d|_dup|_cd|_ld', symbol):
@@ -576,14 +566,8 @@ class Parser:
                 symmetry = tensor.symmetry = 'sym01'
                 diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
-                # connection = 'Gamma' + diacritic + 'UDD'
-                # if connection in self._namespace:
-                #     del self._namespace[connection]
-                # sentence, position = self.lexer.sentence, self.lexer.mark()
                 with self.lexer.new_context():
                     self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
-                # self.lexer.initialize(sentence, position)
-                # self.lexer.lex()
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and diff_type:
                 rank = 0
@@ -598,6 +582,7 @@ class Parser:
                     function = Function('Tensor')(Symbol(base_symbol, real=True))
                     self._define_tensor(Tensor(function, diff_type=diff_type))
             if not self.accept('COMMA'): break
+        self.accept('EOL')
 
     # <IGNORE> -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
     def _ignore(self):
@@ -613,6 +598,7 @@ class Parser:
                 self.lexer.sentence = sentence[:position] + sentence[position:].replace(string, '')
             if not self.accept('COMMA'): break
         self.lexer.reset(); self.lexer.lex()
+        self.accept('EOL')
 
     # <OPTION> -> <CONSTANT> | <KRONECKER> | <METRIC> [ '=' <VARIABLE> ] | <WEIGHT> '=' <NUMBER>
     #              | <DIFF_TYPE> '=' <DIFF_OPT> | <SYMMETRY> '=' <SYM_OPT>
@@ -623,8 +609,7 @@ class Parser:
             return 'symmetry<>kron'
         if self.accept('METRIC'):
             if self.accept('EQUAL'):
-                metric = self.lexer.lexeme[1:-1]
-                self.expect('VARIABLE')
+                metric = self._variable()
                 return 'metric<>' + metric
             return 'symmetry<>metric'
         if self.accept('WEIGHT'):
@@ -1104,7 +1089,7 @@ class Parser:
             if location == 'RHS' and (self._property['vphantom'] or symbol not in self._namespace):
                 with self.lexer.new_context():
                     if index[1] == 'U':
-                        config = ' % assign -diff_type=dD \'' + symbol + '\''
+                        config = ' % assign -diff_type=dD ' + symbol + '\n'
                         self.parse_latex(''.join(equation) + config)
                     else:
                         self.parse_latex(self._generate_covdrv(function, index[0], symbol, diacritic))
@@ -1350,6 +1335,15 @@ class Parser:
             else: self.expect('RBRACE')
             return indexing, order
         return [self._indexing_2()], order
+
+    # <VARIABLE> -> <LETTER> { <LETTER> | <UNDERSCORE> }*
+    def _variable(self):
+        variable = self.lexer.lexeme
+        self.expect('LETTER')
+        while self.peek('LETTER') or self.peek('UNDERSCORE') or self.peek('DIFF_OPT'):
+            variable += self.lexer.lexeme
+            self.lexer.lex()
+        return variable
 
     # <NUMBER> -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
     def _number(self):
@@ -1638,7 +1632,7 @@ class Parser:
                 .format(symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'), dimension=dimension,
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
             if diff_type:
-                latex_config += '\n' + r"% assign -diff_type={diff_type} '{symbol}det', '{inv_symbol}'" \
+                latex_config += '\n' + r"% assign -diff_type={diff_type} {symbol}det, {inv_symbol}" \
                     .format(diff_type=diff_type, symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'))
             else: latex_config += r' \\'
         else:
@@ -1652,7 +1646,7 @@ class Parser:
                 .format(symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'), dimension=dimension,
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
             if diff_type:
-                latex_config += '\n' + r"% assign -diff_type={diff_type} '{symbol}det', '{inv_symbol}'" \
+                latex_config += '\n' + r"% assign -diff_type={diff_type} {symbol}det, {inv_symbol}" \
                     .format(diff_type=diff_type, symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'))
             else: latex_config += r' \\'
         metric = '\\text{' + re.split(r'[UD]', symbol)[0] + '}'
@@ -1686,7 +1680,7 @@ class Parser:
                 RHS += '^{%s}_{%s %s} (%s)' % (index, bound_index, covdrv_index, latex)
             else:
                 RHS += '^{%s}_{%s %s} (%s)' % (bound_index, index, covdrv_index, latex)
-        config = (' % assign -diff_type=dD \'' + symbol + '\'') if symbol else ''
+        config = (' % assign -diff_type=dD ' + symbol + '\n') if symbol else ''
         return LHS + ' = ' + RHS + config
 
     @staticmethod
