@@ -177,14 +177,14 @@ class Parser:
         #     <MACRO>     -> <PARSE> | <SREPL> | <VARDEF> | <KEYDEF> | <ASSIGN> | <IGNORE>
         #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
         #     <SREPL>     -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
-        #     <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> { ',' <VARIABLE> }* [ '(' <DIMENSION> ')' ]
+        #     <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> [ '::' <DIMENSION> ] { ',' <VARIABLE> [ '::' <DIMENSION> ] }*
         #     <KEYDEF>    -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
         #     <ASSIGN>    -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
         #     <IGNORE>    -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
         #     <OPTION>    -> <CONSTANT> | <KRONECKER> | <METRIC> [ '=' <VARIABLE> ] | <WEIGHT> '=' <NUMBER>
         #                     | <DIFF_TYPE> '=' <DIFF_OPT> | <SYMMETRY> '=' <SYM_OPT>
         #     <BASIS>     -> <BASIS_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
-        #     <INDEX>     -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '(' <DIMENSION> ')'
+        #     <INDEX>     -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '::' <DIMENSION>
         # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION>
         # <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
         # <TERM>          -> <FACTOR> { [ '/' ] <FACTOR> }*
@@ -444,7 +444,7 @@ class Parser:
             if not self.accept('COMMA'): break
         self.accept('EOL')
 
-    # <VARDEF> -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> { ',' <VARIABLE> }* [ '(' <DIMENSION> ')' ]
+    # <VARDEF> -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> [ '::' <DIMENSION> ] { ',' <VARIABLE> [ '::' <DIMENSION> ] }*
     def _vardef(self):
         self.expect('VARDEF_MACRO')
         diff_type, symmetry = None, None
@@ -465,11 +465,11 @@ class Parser:
         while True:
             symbol = self._variable()
             dimension = self._property['dimension']
-            if self.accept('LPAREN'):
+            if self.accept('COLON'):
+                self.expect('COLON')
                 dimension = self.lexer.lexeme[:-1]
                 self.expect('DIMENSION')
                 dimension = int(dimension)
-                self.expect('RPAREN')
             if symmetry == 'const':
                 self._namespace[symbol] = Function('Constant')(Symbol(symbol, real=True))
                 self.state.add(symbol)
@@ -646,7 +646,7 @@ class Parser:
         if not self._property['dimension']:
             self._property['dimension'] = len(self._property['basis'])
 
-    # <INDEX> -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' )  '(' <DIMENSION> ')'
+    # <INDEX> -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' )  '::' <DIMENSION>
     def _index(self):
         if self.accept('LBRACK'):
             index_1 = self._strip(self.lexer.lexeme)
@@ -659,11 +659,11 @@ class Parser:
         else:
             index = [self._strip(self.lexer.lexeme)]
             self.expect('LETTER')
-        self.expect('LPAREN')
+        self.expect('COLON')
+        self.expect('COLON')
         dimension = self.lexer.lexeme
         self.expect('DIMENSION')
         dimension = int(dimension[:-1])
-        self.expect('RPAREN')
         self._property['index'].update({i: dimension for i in index})
 
     # <ASSIGNMENT> -> <OPERATOR> = <EXPRESSION>
