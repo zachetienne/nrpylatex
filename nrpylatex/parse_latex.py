@@ -13,7 +13,7 @@ from collections import OrderedDict
 from inspect import currentframe
 import re, sys, math, warnings
 
-class Lexer:
+class Lexer(object):
     """ LaTeX Lexer
 
         The following class will tokenize a LaTeX sentence for parsing.
@@ -151,16 +151,16 @@ class Lexer:
         self.initialize(self.sentence, self.marker if index is None else index, self.whitespace)
         self.lex()
 
-    def get_whitespace(self):
+    @property
+    def whitespace(self):
         return self._whitespace
 
-    def set_whitespace(self, flag):
+    @whitespace.setter
+    def whitespace(self, flag):
         if not flag:
             while self.token in ('WHITESPACE', 'EOL'):
                 self.lex()
         self._whitespace = flag
-
-    whitespace = property(get_whitespace, set_whitespace)
 
     def new_context(self):
         return self.LexerContext(self)
