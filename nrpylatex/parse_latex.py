@@ -107,7 +107,7 @@ class Lexer:
         self.lexeme   = None
         self.marker   = None
         self.index    = position
-        self.whitespace = whitespace
+        self._whitespace = whitespace
 
     def tokenize(self):
         """ Tokenize Sentence
@@ -150,6 +150,17 @@ class Lexer:
             raise RuntimeError('cannot reset uninitialized lexer')
         self.initialize(self.sentence, self.marker if index is None else index, self.whitespace)
         self.lex()
+
+    def get_whitespace(self):
+        return self._whitespace
+
+    def set_whitespace(self, flag):
+        if not flag:
+            while self.token in ('WHITESPACE', 'EOL'):
+                self.lex()
+        self._whitespace = flag
+
+    whitespace = property(get_whitespace, set_whitespace)
 
     def new_context(self):
         return self.LexerContext(self)
@@ -252,10 +263,8 @@ class Parser:
         self.lexer.initialize('\n'.join(['srepl "%s" -> "%s"' % (old, new)
             for (old, new) in self._property['srepl']] + [sentence]))
         self.lexer.lex()
-        self.lexer.whitespace = True
         for _ in self._property['srepl']:
             self._srepl()
-        self.lexer.whitespace = False
         sentence = self.lexer.sentence[self.lexer.mark():]
         stack = []; i = i_1 = i_2 = i_3 = 0
         while i < len(sentence):
@@ -305,9 +314,7 @@ class Parser:
                 self._align()
                 if self.lexer.lexeme: continue
             elif self.accept('COMMENT'):
-                self.lexer.whitespace = True
                 self._macro()
-                self.lexer.whitespace = False
             elif count > 0:
                 self._assignment()
             else:
@@ -337,14 +344,12 @@ class Parser:
         self.expect('OPENING')
         while not self.accept('CLOSING'):
             if self.accept('COMMENT'):
-                self.lexer.whitespace = True
                 self._macro()
-                self.lexer.whitespace = False
             else: self._assignment()
             if self.accept('RETURN'): pass
 
     # <MACRO> -> <PARSE> | <SREPL> | <VARDEF> | <KEYDEF> | <ASSIGN> | <IGNORE>
-    def _macro(self):
+    def _macro(self): # TODO RENAME
         macro = self.lexer.lexeme
         if self.peek('PARSE_MACRO'):
             self._parse()
@@ -384,7 +389,7 @@ class Parser:
             self.lexer.mark()
             self.expect('STRING')
             self.lexer.reset(); self.lexer.mark()
-            lexer = Lexer(); lexer.initialize(old, whitespace=True)
+            lexer = Lexer(); lexer.initialize(old)
             substr_syntax = []
             for token in lexer.tokenize():
                 substr_syntax.append((lexer.lexeme, token))
@@ -442,17 +447,20 @@ class Parser:
             self.lexer.sentence = sentence
             self.lexer.reset(); self.lexer.lex()
             if not self.accept('COMMA'): break
-        self.accept('EOL')
 
     # <VARDEF> -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> [ '::' <DIMENSION> ] { ',' <VARIABLE> [ '::' <DIMENSION> ] }*
     def _vardef(self):
+        self.lexer.whitespace = True
         self.expect('VARDEF_MACRO')
         diff_type, symmetry = None, None
         metric, weight = None, None
         zero = False
+        self.accept('WHITESPACE')
         while self.accept('MINUS'):
             zero = self.accept('ZERO')
-            if zero: continue
+            if zero:
+                self.accept('WHITESPACE')
+                continue
             option, value = self._option().split('<>')
             if option == 'diff_type':
                 diff_type = value
@@ -462,6 +470,7 @@ class Parser:
                 metric = value
             elif option == 'weight':
                 weight = value
+            self.accept('WHITESPACE')
         while True:
             symbol = self._variable()
             dimension = self._property['dimension']
@@ -469,6 +478,7 @@ class Parser:
                 self.expect('COLON')
                 dimension = self.lexer.lexeme[:-1]
                 self.expect('DIMENSION')
+                self.accept('WHITESPACE')
                 dimension = int(dimension)
             if symmetry == 'const':
                 self._namespace[symbol] = Function('Constant')(Symbol(symbol, real=True))
@@ -488,7 +498,9 @@ class Parser:
                 with self.lexer.new_context():
                     self.parse_latex(self._generate_metric(symbol, dimension, diacritic, diff_type))
             if not self.accept('COMMA'): break
+            self.accept('WHITESPACE')
         self.accept('EOL')
+        self.lexer.whitespace = False
 
     # <KEYDEF> -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
     def _keydef(self):
@@ -506,13 +518,14 @@ class Parser:
             sentence, position = self.lexer.sentence, self.lexer.mark()
             raise ParseError('unexpected keyword at position %d' %
                 position, sentence, position)
-        self.accept('EOL')
 
     # <ASSIGN> -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
     def _assign(self):
+        self.lexer.whitespace = True
         self.expect('ASSIGN_MACRO')
         diff_type, symmetry = None, None
         metric, weight = None, None
+        self.accept('WHITESPACE')
         while self.accept('MINUS'):
             option, value = self._option().split('<>')
             if option == 'diff_type':
@@ -523,6 +536,7 @@ class Parser:
                 metric = value
             elif option == 'weight':
                 weight = value
+            self.accept('WHITESPACE')
         while True:
             symbol = self._variable()
             if symbol not in self._namespace:
@@ -582,7 +596,9 @@ class Parser:
                     function = Function('Tensor')(Symbol(base_symbol, real=True))
                     self._define_tensor(Tensor(function, diff_type=diff_type))
             if not self.accept('COMMA'): break
+            self.accept('WHITESPACE')
         self.accept('EOL')
+        self.lexer.whitespace = False
 
     # <IGNORE> -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
     def _ignore(self):
@@ -632,6 +648,7 @@ class Parser:
 
     # <BASIS> -> <BASIS_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
     def _basis(self):
+        # TODO CHANGE BASIS TO COORD
         self.expect('LBRACK')
         del self._property['basis'][:]
         while True:
@@ -1240,8 +1257,8 @@ class Parser:
                                     if diff_type:
                                         latex += '-diff_type=' + diff_type + ' '
                                     if self._namespace[symbol_RHS].metric:
-                                        latex += '-metric=\'' + metric + '\' '
-                                    latex += '\'' + symbol + '\''
+                                        latex += '-metric=' + metric + ' '
+                                    latex += symbol
                                 self.parse_latex(latex)
                             return function
                     raise ParseError('cannot index undefined tensor \'%s\' at position %d' %
@@ -1715,15 +1732,11 @@ class Parser:
         return symbol[1:] if symbol[0] == '\\' else symbol
 
     def peek(self, token):
-        if self.lexer.token == 'WHITESPACE':
-            self.lexer.lex()
         return self.lexer.token == token
 
     def accept(self, token):
         if self.peek(token):
             self.lexer.lex()
-            if self.lexer.token == 'WHITESPACE':
-                self.lexer.lex()
             return True
         return False
 
