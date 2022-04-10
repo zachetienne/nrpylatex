@@ -68,13 +68,13 @@ class Lexer(object):
             ('NLOG_CMD',        r'\\ln|\\log'),
             ('TRIG_CMD',        r'\\sinh|\\cosh|\\tanh|\\sin|\\cos|\\tan'),
             ('VARDEF_MACRO',    r'vardef'),
-            ('KEYDEF_MACRO',    r'keydef'),
+            ('ATTRIB_MACRO',    r'attrib'),
             ('ASSIGN_MACRO',    r'assign'),
             ('IGNORE_MACRO',    r'ignore'),
             ('PARSE_MACRO',     r'parse'),
             ('SREPL_MACRO',     r'srepl'),
             ('INDEX_KWRD',      r'index'),
-            ('BASIS_KWRD',      r'basis'),
+            ('COORD_KWRD',      r'coord'),
             ('DIFF_TYPE',       r'diff_type'),
             ('CONSTANT',        r'const'),
             ('KRONECKER',       r'kron'),
@@ -185,16 +185,16 @@ class Parser:
         # LaTeX Extended BNF Grammar:
         # <LATEX>         -> ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) }*
         # <ALIGN>         -> <OPENING> ( '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | <ASSIGNMENT> ) }* <CLOSING>
-        #     <MACRO>     -> <PARSE> | <SREPL> | <VARDEF> | <KEYDEF> | <ASSIGN> | <IGNORE>
-        #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
+        #     <MACRO>     -> <PARSE> | <SREPL> | <VARDEF> | <ATTRIB> | <ASSIGN> | <IGNORE>
+        #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }* '\\'
         #     <SREPL>     -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
         #     <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> [ '::' <DIMENSION> ] { ',' <VARIABLE> [ '::' <DIMENSION> ] }*
-        #     <KEYDEF>    -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
+        #     <ATTRIB>    -> <ATTRIB_MACRO> ( <COORD_KWRD> ( <COORD> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
         #     <ASSIGN>    -> <ASSIGN_MACRO> { '-' <OPTION> }* <VARIABLE> { ',' <VARIABLE> }*
         #     <IGNORE>    -> <IGNORE_MACRO> <STRING> { ',' <STRING> }*
         #     <OPTION>    -> <CONSTANT> | <KRONECKER> | <METRIC> [ '=' <VARIABLE> ] | <WEIGHT> '=' <NUMBER>
         #                     | <DIFF_TYPE> '=' <DIFF_OPT> | <SYMMETRY> '=' <SYM_OPT>
-        #     <BASIS>     -> <BASIS_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
+        #     <COORD>     -> <COORD_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
         #     <INDEX>     -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '::' <DIMENSION>
         # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION>
         # <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
@@ -243,7 +243,7 @@ class Parser:
         if reset: Parser._namespace.clear()
         Parser._property['dimension'] = 3
         Parser._property['srepl'] = []
-        Parser._property['basis'] = CoordinateSystem('x')
+        Parser._property['coord'] = CoordinateSystem('x')
         Parser._property['index'] = {i: Parser._property['dimension']
             for i in (chr(i) for i in range(105, 123))} # 105 -> 97
         Parser._property['ignore'] = ['\\left', '\\right', '{}', '&']
@@ -348,8 +348,8 @@ class Parser:
             else: self._assignment()
             if self.accept('RETURN'): pass
 
-    # <MACRO> -> <PARSE> | <SREPL> | <VARDEF> | <KEYDEF> | <ASSIGN> | <IGNORE>
-    def _macro(self): # TODO RENAME
+    # <MACRO> -> <PARSE> | <SREPL> | <VARDEF> | <ATTRIB> | <ASSIGN> | <IGNORE>
+    def _macro(self):
         macro = self.lexer.lexeme
         if self.peek('PARSE_MACRO'):
             self._parse()
@@ -357,8 +357,8 @@ class Parser:
             self._srepl()
         elif self.peek('VARDEF_MACRO'):
             self._vardef()
-        elif self.peek('KEYDEF_MACRO'):
-            self._keydef()
+        elif self.peek('ATTRIB_MACRO'):
+            self._attrib()
         elif self.peek('ASSIGN_MACRO'):
             self._assign()
         elif self.peek('IGNORE_MACRO'):
@@ -368,12 +368,13 @@ class Parser:
             raise ParseError('unsupported macro \'%s\' at position %d' %
                 (macro, position), sentence, position)
 
-    # <PARSE> -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
+    # <PARSE> -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }* '\\'
     def _parse(self):
         self.expect('PARSE_MACRO')
         self._assignment()
         while self.accept('COMMA'):
             self._assignment()
+        self.expect('RETURN')
 
     # <SREPL> -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
     def _srepl(self):
@@ -502,13 +503,13 @@ class Parser:
         self.accept('EOL')
         self.lexer.whitespace = False
 
-    # <KEYDEF> -> <KEYDEF_MACRO> ( <BASIS_KWRD> ( <BASIS> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
-    def _keydef(self):
-        self.expect('KEYDEF_MACRO')
-        if self.accept('BASIS_KWRD'):
+    # <ATTRIB> -> <ATTRIB_MACRO> ( <COORD_KWRD> ( <COORD> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
+    def _attrib(self):
+        self.expect('ATTRIB_MACRO')
+        if self.accept('COORD_KWRD'):
             if self.accept('DEFAULT'):
-                self._property['basis'] = CoordinateSystem('x')
-            else: self._basis()
+                self._property['coord'] = CoordinateSystem('x')
+            else: self._coord()
         elif self.accept('INDEX_KWRD'):
             if self.accept('DEFAULT'):
                 self._property['index'] = {i: self._property['dimension']
@@ -646,22 +647,21 @@ class Parser:
         raise ParseError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
-    # <BASIS> -> <BASIS_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
-    def _basis(self):
-        # TODO CHANGE BASIS TO COORD
+    # <COORD> -> <COORD_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
+    def _coord(self):
         self.expect('LBRACK')
-        del self._property['basis'][:]
+        del self._property['coord'][:]
         while True:
             symbol = self._strip(self._symbol())
-            if symbol in self._property['basis']:
+            if symbol in self._property['coord']:
                 sentence, position = self.lexer.sentence, self.lexer.mark()
-                raise ParseError('duplicate basis symbol \'%s\' at position %d' %
+                raise ParseError('duplicate coord symbol \'%s\' at position %d' %
                     (sentence[position], position), sentence, position)
-            self._property['basis'].append(Symbol(symbol, real=True))
+            self._property['coord'].append(Symbol(symbol, real=True))
             if not self.accept('COMMA'): break
         self.expect('RBRACK')
         if not self._property['dimension']:
-            self._property['dimension'] = len(self._property['basis'])
+            self._property['dimension'] = len(self._property['coord'])
 
     # <INDEX> -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' )  '::' <DIMENSION>
     def _index(self):
@@ -705,7 +705,7 @@ class Parser:
                 global_env[key] = global_env[key].structure
             if isinstance(global_env[key], Function('Constant')):
                 global_env[key] = global_env[key].args[0]
-        global_env['basis'] = self._property['basis']
+        global_env['coord'] = self._property['coord']
         exec('from sympy import *', global_env)
         # evaluate every implied summation and update namespace
         exec(LHS_RHS, global_env)
@@ -1296,8 +1296,8 @@ class Parser:
         if self.accept('LETTER'):
             index = Symbol(lexeme, real=True) if not self.accept('UNDERSCORE') \
                 else Symbol('%s_%s' % (lexeme, self._indexing_2()), real=True)
-            return index if index not in self._property['basis'] \
-                else Integer(self._property['basis'].index(index))
+            return index if index not in self._property['coord'] \
+                else Integer(self._property['coord'].index(index))
         elif self.accept('INTEGER'):
             return Integer(lexeme)
         sentence, position = self.lexer.sentence, self.lexer.mark()
@@ -1309,8 +1309,8 @@ class Parser:
         lexeme = self._strip(self.lexer.lexeme)
         if self.accept('LETTER'):
             index = Symbol(lexeme, real=True)
-            return index if index not in self._property['basis'] \
-                else Integer(self._property['basis'].index(index))
+            return index if index not in self._property['coord'] \
+                else Integer(self._property['coord'].index(index))
         elif self.accept('INTEGER'):
             return Integer(lexeme)
         elif self.accept('LBRACE'):
@@ -1525,7 +1525,7 @@ class Parser:
                         indexing.append((index, position))
             elif subexpr.func == Derivative:
                 for index, _ in subexpr.args[1:]:
-                    if index not in self._property['basis']:
+                    if index not in self._property['coord']:
                         if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
                             indexing.append((index, 'D'))
         symbol_LHS = Tensor(LHS).symbol
@@ -1576,8 +1576,8 @@ class Parser:
                             raise ParseError('inconsistent dimension for index \'%s\'' %
                                 index, self.lexer.sentence)
                         idx_map[str(index)] = upper_bound
-                        if index not in self._property['basis']:
-                            derivative += ', (basis[%s], %s)' % (index, order)
+                        if index not in self._property['coord']:
+                            derivative += ', (coord[%s], %s)' % (index, order)
                             if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
                                 indexing.append((index, 'D'))
                         else: derivative += ', (%s, %s)' % (index, order)
