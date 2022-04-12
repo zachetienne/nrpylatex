@@ -73,3 +73,21 @@ jobs:
         run: python -m pip install -U git+https://github.com/sympy/sympy/
       - name: perform unit testing
         run: python -m unittest
+  test_nrpytutorial-ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "checking out branch ${{ github.ref }} on ${{ github.repository }}."
+      - name: checkout repository
+        uses: actions/checkout@v2
+      - name: install python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.7
+      - name: install sympy (latest stable version)
+        run: python -m pip install ipython sympy
+      - name: clone nrpytutorial repository
+        run: git clone https://github.com/zachetienne/nrpytutorial.git
+      - name: install nrpylatex from GitHub
+        run: python -m pip install git+https://github.com/zachetienne/nrpylatex.git
+      - name: change directory and perform unit testing
+        run: cd nrpytutorial && python -m unittest tests.test_parse_BSSN
