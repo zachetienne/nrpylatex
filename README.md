@@ -47,22 +47,22 @@ To install **NRPyLaTeX** using [PyPI](https://pypi.org/project/nrpylatex/), run 
     >>> from nrpylatex import parse_latex
     >>> parse_latex(r"""
     ...     \begin{align}
-    ...         % keydef basis [t, r, \theta, \phi]
-    ...         % vardef -zero 'gDD' (4D)
-    ...         % vardef -const 'G', 'M'
+    ...         % attrib coord [t, r, \theta, \phi]
+    ...         % vardef -zero gDD::4D
+    ...         % vardef -const G, M
     ...         %% define Schwarzschild metric diagonal
     ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
     ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
     ...         g_{\theta \theta} &= r^2 \\
     ...         g_{\phi \phi} &= r^2 \sin^2\theta \\
     ...         %% generate metric inverse gUU, determinant det(gDD), and connection GammaUDD
-    ...         % assign -metric 'gDD'
+    ...         % assign -metric gDD
     ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
     ...             + \Gamma^\alpha_{\mu \gamma} \Gamma^\gamma_{\beta \nu} - \Gamma^\alpha_{\nu \sigma} \Gamma^\sigma_{\beta \mu} \\
     ...         K &= R^{\alpha \beta \mu \nu} R_{\alpha \beta \mu \nu}
     ...     \end{align}
     ... """, ignore_warning=True)
-    ('gDD', 'epsilonUUUU', 'gdet', 'gUU', 'GammaUDD', 'RUDDD', 'RUUUU', 'RDDDD', 'K')
+    ('G', 'GammaUDD', 'gDD', 'gUU', 'epsilonUUUU', 'RUDDD', 'K', 'RUUUU', 'M', 'r', 'theta', 'RDDDD', 'gdet')
     >>> from sympy import simplify
     >>> print(simplify(K))
     48*G**2*M**2/r**6
@@ -72,21 +72,21 @@ To install **NRPyLaTeX** using [PyPI](https://pypi.org/project/nrpylatex/), run 
     In [1]: %load_ext nrpylatex.extension
     In [2]: %%parse_latex --ignore-warning
        ...: \begin{align}
-       ...:     % keydef basis [t, r, \theta, \phi]
-       ...:     % vardef -zero 'gDD' (4D)
-       ...:     % vardef -const 'G', 'M'
+       ...:     % attrib coord [t, r, \theta, \phi]
+       ...:     % vardef -zero gDD::4D
+       ...:     % vardef -const G, M
        ...:     %% define Schwarzschild metric diagonal
        ...:     g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
        ...:     g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
        ...:     g_{\theta \theta} &= r^2 \\
        ...:     g_{\phi \phi} &= r^2 \sin^2\theta \\
        ...:     %% generate metric inverse gUU, determinant det(gDD), and connection GammaUDD
-       ...:     % assign -metric 'gDD'
+       ...:     % assign -metric gDD
        ...:     R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
        ...:         + \Gamma^\alpha_{\mu \gamma} \Gamma^\gamma_{\beta \nu} - \Gamma^\alpha_{\nu \sigma} \Gamma^\sigma_{\beta \mu} \\
        ...:     K &= R^{\alpha \beta \mu \nu} R_{\alpha \beta \mu \nu}
        ...: \end{align}
-    Out[2]: ('gDD', 'epsilonUUUU', 'gdet', 'gUU', 'GammaUDD', 'RUDDD', 'RUUUU', 'RDDDD', 'K')
+    Out[2]: ('G', 'GammaUDD', 'gDD', 'gUU', 'epsilonUUUU', 'RUDDD', 'K', 'RUUUU', 'M', 'r', 'theta', 'RDDDD', 'gdet')
     In [3]: from sympy import simplify
     In [4]: print(simplify(K))
     Out[4]: 48*G**2*M**2/r**6
@@ -103,131 +103,110 @@ If `v` and `vU` are both in the namespace and you attempt to parse the expressio
 
     srepl "v_{<1..>}" -> "v<>{<1..>}", "v_<1>" -> "\text{v_<1>}", "v<>{<1..>}" -> "\text{v_<1..>}"
 
-#### PARSE MACRO
-    parse - parse an equation without rendering
+#### PARSE Command
+    parse - parses an equation without typesetting
 
     USAGE
         parse EQUATION
-
     EQUATION
-        syntax: (tensorial) LaTeX equation
+        single LaTeX assignment + '\\'
 
-#### SREPL MACRO
-    srepl - syntactic string replacement
-
-    USAGE
-        srepl [OPTION] RULE, ...
-
-    OPTION
-        persist
-            apply rule(s) to every subsequent input of the parse() function
-            remark: internally generated LaTeX included
-
-    RULE
-        syntax: "..." -> "..."
-        remark (1): string A and string B are considered equal
-            if they are equivalent syntactically (i.e. lexeme, token)
-        remark (2): substring can include a capture group
-            single token capture group <#>
-            continuous capture group <#..>
-
-#### VARDEF MACRO
-    vardef - define a variable
-
-    USAGE
-        vardef [OPERAND ...] [OPTION] VARIABLE, ... [DIMENSION]
-
-    OPERAND
-        metric=VARIABLE
-            desc: assign metric to variable for automatic index raising/lowering
-            default: metric associated with diacritic (or lack thereof)
-
-        weight=NUMBER
-            desc: assign weight to variable (used to generate Lie derivative)
-            default: 0
-
-        diff_type=DIFF_TYPE
-            desc: assign derivative type to variable {symbolic | dD (numeric) | dupD (upwind)}
-            default: symbolic
-
-        symmetry=SYMMETRY
-            desc: assign (anti)symmetry to variable
-            default: nosym
-            example(s):  sym01 -> [i][j] = [j][i], anti01 -> [i][j] = -[j][i]
-
-    OPTION
-        const
-            label variable type: constant
-
-        kron
-            label variable type: delta function
-
-        metric
-            label variable type: metric
-
-        zero
-            zero each component of variable
-
-    VARIABLE
-        syntax: alphabetic string inside of '...'
-        example(s): 'vU', 'gDD', 'alpha'
-
-    DIMENSION
-        syntax: variable dimension inside of (...)
-        default: 3D
-
-#### KEYDEF MACRO
-    vardef - define a keyword
-
-    USAGE
-        keydef OPERAND VARIABLE
-
-    OPERAND
-        basis=BASIS
-            desc: define basis (or coordinate system)
-            example(s): [x, y, z], [r, \phi], default
-
-        index=RANGE
-            desc: override index range
-            example(s): i (4D), [a-z] (2D)
-
-    VARIABLE
-        syntax: alphabetic string inside of '...'
-        example(s): 'vU', 'gDD', 'alpha'
-
-#### ASSIGN MACRO
-    assign - assign property(ies) to a variable
-
-    USAGE
-        assign [OPERAND ...] VARIABLE, ...
-
-    OPERAND
-        metric=VARIABLE
-            desc: assign metric to variable for automatic index raising/lowering
-            default: metric associated with diacritic (or lack thereof)
-
-        weight=NUMBER
-            desc: assign weight to variable (used to generate Lie derivative)
-            default: 0
-
-        diff_type=DIFF_TYPE
-            desc: assign derivative type to variable {symbolic | dD (numeric) | dupD (upwind)}
-            default: symbolic
-
-        symmetry=SYMMETRY
-            desc: assign (anti)symmetry to variable
-            default: nosym
-            example(s):  sym01 -> [i][j] = [j][i], anti01 -> [i][j] = -[j][i]
-
-    VARIABLE
-        alphabetic string inside of '...'
-        example(s): 'vU', 'gDD', 'alpha'
-
-#### IGNORE MACRO
-    ignore - remove a substring; equivalent to srepl "..." -> "" (empty replacement)
+#### IGNORE Command
+    ignore - ignores a LaTeX command or substring during parsing
 
     USAGE
         ignore SUBSTRING, ...
-    
     SUBSTRING
-        syntax: "..."
+        double-quoted string
+
+#### VARDEF Command
+    vardef - defines a variable with (optional) attributes
+
+    USAGE
+        vardef [OPERAND ...] [OPTION] VARIABLE [DIMENSION], ...
+    OPERAND
+        metric=METRIC
+            desc: assign metric for index manipulation
+            default: metric associated with diacritic (or lack thereof)
+        weight=NUMBER
+            desc: assign weight for Lie derivative generation
+            default: 0
+        diff_type=DIFF_TYPE
+            desc: assign derivative type {symbolic | dD | dupD (upwind)}
+            default: symbolic
+        symmetry=SYMMETRY
+            desc: assign (anti)symmetry
+            default: nosym
+            example(s):  sym01 -> [i][j] = [j][i], anti01 -> [i][j] = -[j][i]
+    OPTION
+        const
+            label variable type: constant
+        kron
+            label variable type: delta function
+        metric
+            label variable type: metric
+        zero
+            assign zero to each component
+    VARIABLE
+        alphabetic string
+        example(s): vU, gDD, alpha
+    DIMENSION
+        variable dimension (array length)
+        default: 3D
+        example(s): vU::4D
+
+#### ATTRIB Command
+    attrib - overrides global properties of NRPyLaTeX
+
+    USAGE
+        attrib OPERAND VARIABLE
+    OPERAND
+        coord=COORD
+            desc: define coord (or coordinate system)
+            example(s): [x, y, z], [r, \phi], default
+        index=RANGE
+            desc: override index range
+            example(s): i::4D, [a-z]::2D
+    VARIABLE
+        alphabetic string
+        example(s): vU, gDD, alpha
+
+#### ASSIGN Command
+    assign - assigns attributes to already defined variables
+
+    USAGE
+        assign [OPERAND ...] [OPTION] VARIABLE, ...
+    OPERAND
+        metric=VARIABLE
+            desc: assign metric for index manipulation
+            default: metric associated with diacritic (or lack thereof)
+        weight=NUMBER
+            desc: assign weight for Lie derivative generation
+            default: 0
+        diff_type=DIFF_TYPE
+            desc: assign derivative type {symbolic | dD | dupD (upwind)}
+            default: symbolic
+        symmetry=SYMMETRY
+            desc: assign (anti)symmetry
+            default: nosym
+            example(s):  sym01 -> [i][j] = [j][i], anti01 -> [i][j] = -[j][i]
+    OPTION
+        metric
+            label variable type: metric
+    VARIABLE
+        alphabetic string
+        example(s): vU, gDD, alpha
+
+#### SREPL COMMAND
+    srepl - performs string replacement with (lexeme) capture group support
+
+    USAGE
+        srepl [OPTION] RULE, ...
+    OPTION
+        persist
+            apply rule(s) to every subsequent input of the parse() function (internal or external)
+    RULE
+        syntax: "..." -> "..."
+        remark (1): whitespace ignored
+        remark (2): substring can include a lexeme capture group
+            syntax: <i> (single), <i..> (continuous) where i = 0, 1, 2, ...
