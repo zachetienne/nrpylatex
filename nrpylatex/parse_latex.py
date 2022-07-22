@@ -2,12 +2,11 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-# pylint: disable = attribute-defined-outside-init, protected-access, exec-used
 from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
 from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
 from sympy import pi, exp, log, sqrt, expand, diff, srepr
 from nrpylatex.core.indexed_symbol import symdef
-from nrpylatex.core.functional import uniquify
+from nrpylatex.core.functional import flatten, uniquify
 from nrpylatex.core.symtree import ExprTree
 from collections import OrderedDict
 from inspect import currentframe
@@ -84,6 +83,7 @@ class Lexer(object):
             ('ZERO',            r'zero'),
             ('DEFAULT',         r'default'),
             ('PERSIST',         r'persist'),
+            ('NOIMPSUM',        r'noimpsum'),
             ('DIFF_OPT',        r'symbolic|dD|dupD'),
             ('SYM_OPT',         symmetry),
             ('DIACRITIC',       r'\\hat|\\tilde|\\bar'),
@@ -186,7 +186,7 @@ class Parser:
         # <LATEX>         -> ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( <ALIGN> | '%' <MACRO> | <ASSIGNMENT> ) }*
         # <ALIGN>         -> <OPENING> ( '%' <MACRO> | <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | <ASSIGNMENT> ) }* <CLOSING>
         #     <MACRO>     -> <PARSE> | <SREPL> | <VARDEF> | <ATTRIB> | <ASSIGN> | <IGNORE>
-        #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }* '\\'
+        #     <PARSE>     -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
         #     <SREPL>     -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
         #     <VARDEF>    -> <VARDEF_MACRO> { '-' ( <OPTION> | <ZERO> ) }* <VARIABLE> [ '::' <DIMENSION> ] { ',' <VARIABLE> [ '::' <DIMENSION> ] }*
         #     <ATTRIB>    -> <ATTRIB_MACRO> ( <COORD_KWRD> ( <COORD> | <DEFAULT> ) | <INDEX_KWRD> ( <INDEX> | <DEFAULT> ) )
@@ -196,7 +196,7 @@ class Parser:
         #                     | <DIFF_TYPE> '=' <DIFF_OPT> | <SYMMETRY> '=' <SYM_OPT>
         #     <COORD>     -> <COORD_KWRD> <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK>
         #     <INDEX>     -> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '::' <DIMENSION>
-        # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION>
+        # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION> [ '\\' ] [ '%' <NOIMPSUM> ]
         # <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
         # <TERM>          -> <FACTOR> { [ '/' ] <FACTOR> }*
         # <FACTOR>        -> <BASE> { '^' <EXPONENT> }*
@@ -368,18 +368,20 @@ class Parser:
             raise ParseError('unsupported macro \'%s\' at position %d' %
                 (macro, position), sentence, position)
 
-    # <PARSE> -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }* '\\'
+    # <PARSE> -> <PARSE_MACRO> <ASSIGNMENT> { ',' <ASSIGNMENT> }*
     def _parse(self):
         self.expect('PARSE_MACRO')
         self._assignment()
         while self.accept('COMMA'):
             self._assignment()
-        self.expect('RETURN')
 
     # <SREPL> -> <SREPL_MACRO> [ '-' <PERSIST> ] <STRING> <ARROW> <STRING> { ',' <STRING> <ARROW> <STRING> }*
     def _srepl(self):
         self.expect('SREPL_MACRO')
-        persist = self.accept('MINUS') and self.accept('PERSIST')
+        persist = False
+        if self.accept('MINUS'):
+            persist = True
+            self.expect('PERSIST')
         while True:
             old = self.lexer.lexeme[1:-1]
             self.expect('STRING')
@@ -683,14 +685,21 @@ class Parser:
         dimension = int(dimension[:-1])
         self._property['index'].update({i: dimension for i in index})
 
-    # <ASSIGNMENT> -> <OPERATOR> = <EXPRESSION>
+    # <ASSIGNMENT> -> <OPERATOR> = <EXPRESSION> [ '\\' ] [ '%' <NOIMPSUM> ]
     def _assignment(self):
         function = self._operator('LHS')
         indexed = function.func == Function('Tensor') and len(function.args) > 1
         self.expect('EQUAL')
-        sentence, position = self.lexer.sentence, self.lexer.mark()
+        sentence, position_1 = self.lexer.sentence, self.lexer.mark()
         tree = ExprTree(self._expression())
-        equation = ((Tensor.latex_format(function), sentence[position:self.lexer.mark()]), tree.root.expr)
+        position_2 = self.lexer.mark()
+        self.accept('RETURN')
+        impsum = True
+        if self.accept('COMMENT'):
+            if self.accept('NOIMPSUM'):
+                impsum = False
+            else: self.lexer.reset()
+        equation = ((Tensor.latex_format(function), sentence[position_1:position_2]), tree.root.expr)
         if not indexed:
             for subtree in tree.preorder():
                 subexpr, rank = subtree.expr, len(subtree.expr.args)
@@ -698,7 +707,7 @@ class Parser:
                     indexed = True
         LHS, RHS = function, expand(tree.root.expr) if indexed else tree.root.expr
         # perform implied summation on indexed expression
-        LHS_RHS, dimension = self._summation(LHS, RHS)
+        LHS_RHS, dimension = self._summation(LHS, RHS, impsum=impsum)
         global_env = dict(self._namespace)
         for key in global_env:
             if isinstance(global_env[key], Tensor):
@@ -716,7 +725,7 @@ class Parser:
         else:
             diff_type = self._namespace[symbol].diff_type if symbol in self._namespace else None
             tensor = Tensor(function, dimension, structure=global_env[symbol],
-                equation=equation, diff_type=diff_type)
+                equation=equation, diff_type=diff_type, impsum=impsum)
         self._namespace.update({symbol: tensor})
         self.state.add(symbol)
 
@@ -1410,7 +1419,8 @@ class Parser:
                         index = next(x for x in alphabet if x not in idx_set)
                     if len(index) > 1:
                         index = '_'.join('\\' + i if len(i) > 1 else i for i in index.split('_'))
-                    self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)' % (index, LHS.strip(), index, RHS.strip()))
+                    impsum = '' if tensor.impsum else ' % noimpsum'
+                    self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)%s' % (index, LHS.strip(), index, RHS.strip(), impsum))
         function = Function('Tensor')(Symbol(symbol, real=True), *indices)
         if symbol not in self._namespace:
             symmetry = 'nosym'
@@ -1490,7 +1500,7 @@ class Parser:
         return func_list, product
 
     @staticmethod
-    def _separate_indexing(indexing, symbol_LHS):
+    def _separate_indexing(indexing, symbol_LHS, impsum=True):
         free_index, bound_index = [], []
         indexing = [(str(idx), pos) for idx, pos in indexing]
         # iterate over every unique index in the subexpression
@@ -1505,7 +1515,7 @@ class Parser:
                     count += 1
             # identify every bound index on the RHS
             if count > 1:
-                if count != 2 or U != D:
+                if impsum and (count != 2 or U != D):
                     # raise exception upon violation of the following rule:
                     # a bound index must appear exactly once as a superscript
                     # and exactly once as a subscript in any single term
@@ -1515,7 +1525,7 @@ class Parser:
             else: free_index.extend(index_tuple)
         return uniquify(free_index), bound_index
 
-    def _summation(self, LHS, RHS):
+    def _summation(self, LHS, RHS, impsum=True):
         tree, indexing = ExprTree(LHS), []
         for subtree in tree.preorder():
             subexpr = subtree.expr
@@ -1530,7 +1540,8 @@ class Parser:
                             indexing.append((index, 'D'))
         symbol_LHS = Tensor(LHS).symbol
         # construct a tuple list of every LHS free index
-        free_index_LHS, _ = self._separate_indexing(indexing, symbol_LHS)
+        free_index_LHS = self._separate_indexing(indexing, symbol_LHS, impsum=impsum)[0] if impsum \
+            else uniquify([(str(idx), pos) for idx, pos in indexing])
         # construct a tuple list of every RHS free index
         free_index_RHS = []
         iterable = RHS.args if RHS.func == Add else [RHS]
@@ -1585,20 +1596,31 @@ class Parser:
                     modified = modified.replace(srepr(subexpr), derivative)
                     tmp = srepr(subexpr).replace(srepr(argument), Tensor(argument).array_format(argument))
                     modified = modified.replace(tmp, derivative)
-            free_index, bound_index = self._separate_indexing(indexing, symbol_LHS)
-            free_index_RHS.append(free_index)
-            # generate implied summation over every bound index
-            for idx in bound_index:
-                modified = 'sum(%s for %s in range(%d))' % (modified, idx, idx_map[idx])
+            if impsum:
+                free_index, bound_index = self._separate_indexing(indexing, symbol_LHS, impsum=impsum)
+                free_index_RHS.append(free_index)
+                # generate implied summation over every bound index
+                for idx in bound_index:
+                    modified = 'sum(%s for %s in range(%d))' % (modified, idx, idx_map[idx])
+            else:
+                free_index_RHS.append(indexing)
             RHS = RHS.replace(original, modified)
-        for i in range(len(free_index_RHS)):
-            if sorted(free_index_LHS) != sorted(free_index_RHS[i]):
-                # raise exception upon violation of the following rule:
-                # a free index must appear in every term with the same
-                # position and cannot be summed over in any term
+        if impsum:
+            for i in range(len(free_index_RHS)):
+                if sorted(free_index_LHS) != sorted(free_index_RHS[i]):
+                    # raise exception upon violation of the following rule:
+                    # a free index must appear in every term with the same
+                    # position and cannot be summed over in any term
+                    set_LHS = set(idx for idx, _ in free_index_LHS)
+                    set_RHS = set(idx for idx, _ in free_index_RHS[i])
+                    raise TensorError('unbalanced free index %s in %s' % \
+                        (set_LHS.symmetric_difference(set_RHS), symbol_LHS))
+        else:
+            free_index_RHS = [(str(idx), pos) for idx, pos in uniquify(flatten(free_index_RHS))]
+            if sorted(free_index_LHS) != sorted(free_index_RHS):
                 set_LHS = set(idx for idx, _ in free_index_LHS)
-                set_RHS = set(idx for idx, _ in free_index_RHS[i])
-                raise TensorError('unbalanced free index %s in %s' % \
+                set_RHS = set(idx for idx, _ in free_index_RHS)
+                raise TensorError('unbalanced index %s in %s' % \
                     (set_LHS.symmetric_difference(set_RHS), symbol_LHS))
         # generate tensor instantiation with implied summation
         if symbol_LHS in self._namespace:
@@ -1611,7 +1633,7 @@ class Parser:
             for idx, _ in reversed(free_index_LHS):
                 RHS = '[%s for %s in range(%d)]' % (RHS, idx, idx_map[idx])
             equation = [LHS.split('[')[0], RHS]
-        if free_index_LHS:
+        if impsum and free_index_LHS:
             dimension = idx_map[free_index[0][0]]
             if any(idx_map[index] != dimension for index, _ in free_index):
                 raise ParseError('inconsistent free index dimension', self.lexer.sentence)
@@ -1766,7 +1788,7 @@ class TensorError(Exception):
 
 class OverrideWarning(UserWarning):
     """ Overridden Namespace Variable """
-# pylint: disable=unused-argument
+
 def _formatwarning(message, category, filename=None, lineno=None, file=None, line=None):
     return '%s: %s\n' % (category.__name__, message)
 warnings.formatwarning = _formatwarning
@@ -1776,7 +1798,7 @@ class Tensor:
     """ Tensor Structure """
 
     def __init__(self, function, dimension=None, structure=None, equation=None,
-            symmetry=None, diff_type=None, metric=None, weight=None):
+            symmetry=None, diff_type=None, impsum=True, metric=None, weight=None):
         self.overridden  = False
         self.symbol      = str(function.args[0])
         self.rank        = 0
@@ -1790,6 +1812,7 @@ class Tensor:
         self.equation    = equation
         self.symmetry    = symmetry
         self.diff_type   = diff_type
+        self.impsum      = impsum
         self.metric      = metric
         self.weight      = weight
 
