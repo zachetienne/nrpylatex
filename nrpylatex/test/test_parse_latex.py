@@ -301,13 +301,38 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             set(parse_latex(r"""
                 % vardef -kron deltaDD
-                % parse \hat{\gamma}_{ij} = \delta_{ij} \\
+                % parse \hat{\gamma}_{ij} = \delta_{ij}
                 % assign -diff_type=symbolic -metric gammahatDD
                 % vardef -diff_type=dD -symmetry=sym01 hDD
-                % parse \bar{\gamma}_{ij} = h_{ij} + \hat{\gamma}_{ij} \\
+                % parse \bar{\gamma}_{ij} = h_{ij} + \hat{\gamma}_{ij}
                 % assign -diff_type=dD -metric gammabarDD
             """)),
             {'gammabardet', 'GammabarUDD', 'gammabarDD', 'gammabarDD_dD', 'gammahatdet', 'hDD', 'GammahatUDD', 'hDD_dD', 'gammahatUU', 'deltaDD', 'gammabarUU', 'epsilonUUU', 'gammahatDD'}
+        )
+
+    def test_assignment_14(self):
+        self.assertEqual(
+            set(parse_latex(r"""
+                % attrib coord [r, \theta, \phi]
+                % vardef vD
+                % parse v_0 = 1
+                % parse v_1 = r
+                % parse v_2 = r \sin \theta
+                % parse R_{ij} = v_i v_j
+                % vardef -zero gammahatDD
+                % parse \hat{\gamma}_{ii} = R_{ii} % noimpsum
+                % vardef -diff_type=dD hDD
+                % parse \bar{\gamma}_{ij} = h_{ij} R_{ij} + \hat{\gamma}_{ij} % noimpsum
+                % assign -diff_type=dD gammabarDD
+                T_{ijk} = \partial_k \bar{\gamma}_{ij}
+            """)),
+            {'gammabarDD_dD', 'RDD', 'r', 'vD', 'theta', 'gammahatDD', 'TDDD', 'hDD', 'gammabarDD', 'hDD_dD'}
+        )
+        self.assertEqual(str(gammahatDD),
+            '[[1, 0, 0], [0, r**2, 0], [0, 0, r**2*sin(theta)**2]]'
+        )
+        self.assertEqual(str(TDDD[0][-1]),
+            '[hDD02*sin(theta) + hDD_dD020*r*sin(theta), hDD02*r*cos(theta) + hDD_dD021*r*sin(theta), hDD_dD022*r*sin(theta)]'
         )
 
     def test_example_1(self):
