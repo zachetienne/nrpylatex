@@ -224,11 +224,12 @@ class Parser:
 
     _namespace, _property = OrderedDict(), {}
 
-    def __init__(self, verbose=False):
+    def __init__(self, debug=False, verbose=False):
         self.lexer = Lexer()
         self.state = set()
         if not self._property:
             self.initialize()
+        self._property['debug'] = int(debug)
         for symbol in self._namespace:
             self._namespace[symbol].overridden = False
         def excepthook(exception_type, exception, traceback):
@@ -700,6 +701,10 @@ class Parser:
                 impsum = False
             else: self.lexer.reset()
         equation = ((Tensor.latex_format(function), sentence[position_1:position_2]), tree.root.expr)
+        if self._property['debug']:
+            (latex_LHS, latex_RHS), expr_RHS = equation
+            print(f'> LaTeX Input {[self._property["debug"]]}\n ', '%s = %s' % (latex_LHS, latex_RHS.rstrip()))
+            print('< SymPy Output\n ', '%s = %s' % (function, expr_RHS))
         if not indexed:
             for subtree in tree.preorder():
                 subexpr, rank = subtree.expr, len(subtree.expr.args)
@@ -708,6 +713,9 @@ class Parser:
         LHS, RHS = function, expand(tree.root.expr) if indexed else tree.root.expr
         # perform implied summation on indexed expression
         LHS_RHS, dimension = self._summation(LHS, RHS, impsum=impsum)
+        if self._property['debug']:
+            print('< Python Output\n ', LHS_RHS, '\n')
+            self._property['debug'] += 1
         global_env = dict(self._namespace)
         for key in global_env:
             if isinstance(global_env[key], Tensor):
@@ -1957,11 +1965,12 @@ class CoordinateSystem(list):
     def __eq__(self, other):
         return list.__eq__(self, other) and self.symbol == other.symbol
 
-def parse_latex(sentence, reset=False, verbose=False, ignore_warning=False):
+def parse_latex(sentence, reset=False, debug=False, verbose=False, ignore_warning=False):
     """ Convert LaTeX Sentence to SymPy Expression
 
         :arg: latex sentence (raw string)
         :arg: reset namespace
+        :arg: debug mode (display SymPy/Python output)
         :arg: verbose output and visible traceback
         :arg: ignore warning
         :return: namespace diff or expression
@@ -1969,7 +1978,7 @@ def parse_latex(sentence, reset=False, verbose=False, ignore_warning=False):
     if reset: Parser.initialize(reset=True)
 
     state = tuple(Parser._namespace.keys())
-    namespace = Parser(verbose).parse_latex(sentence)
+    namespace = Parser(debug, verbose).parse_latex(sentence)
     if not isinstance(namespace, dict):
         return namespace
 

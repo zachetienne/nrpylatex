@@ -12,10 +12,12 @@ class ParseMagic(Magics):
             kwargs.append(match.group(1))
             line = line[match.span()[-1]:]
             match = re.match(r'\s*--([^\s]+)\s*', line)
-        verbose = ignore_warning = False
+        debug = verbose = ignore_warning = False
         for arg in kwargs:
             if arg == 'reset':
                 nl.Parser.initialize(reset=True)
+            elif arg == 'debug':
+                debug = True
             elif arg == 'verbose':
                 verbose = True
             elif arg == 'ignore-warning':
@@ -23,7 +25,7 @@ class ParseMagic(Magics):
         try:
             sentence = line if cell is None else cell
             state = tuple(nl.Parser._namespace.keys())
-            namespace = nl.Parser(verbose).parse_latex(sentence)
+            namespace = nl.Parser(debug, verbose).parse_latex(sentence)
             if not isinstance(namespace, dict):
                 return namespace
             for key in namespace:
