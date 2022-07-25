@@ -57,8 +57,8 @@ class TestParser(unittest.TestCase):
 
     def test_expression_5(self):
         parse_latex(r"""
-            % vardef -diff_type=dD -metric gDD::4D
-            % vardef -diff_type=dD vU::4D
+            % vardef -diff_suffix=dD -metric gDD::4D
+            % vardef -diff_suffix=dD vU::4D
             T^\mu_b = \nabla_b v^\mu
         """)
         function = sp.Function('Tensor')(sp.Symbol('vU_cdD'), sp.Symbol('mu'), sp.Symbol('b'))
@@ -112,7 +112,7 @@ class TestParser(unittest.TestCase):
     def test_assignment_1(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -diff_type=dD vU::2D, wU::2D
+                % vardef -diff_suffix=dD vU::2D, wU::2D
                 % attrib index [a-z]::2D
                 T^{ab}_c = \partial_c (v^a w^b)
             """)),
@@ -125,22 +125,23 @@ class TestParser(unittest.TestCase):
     def test_assignment_2(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -const w
-                % vardef -diff_type=dD vU::2D
+                % vardef -diff_suffix=dD vU::2D
+                % assign -const w
                 % attrib index [a-z]::2D
-                T^a_c = \partial_c (v^a w)
+                T^a_c = % diff_suffix dupD
+                \partial_c (v^a w)
             """)),
-            {'w', 'vU', 'vU_dD', 'TUD'}
+            {'w', 'vU', 'vU_dupD', 'TUD'}
         )
         self.assertEqual(str(TUD),
-            '[[vU_dD00*w, vU_dD01*w], [vU_dD10*w, vU_dD11*w]]'
+            '[[vU_dupD00*w, vU_dupD01*w], [vU_dupD10*w, vU_dupD11*w]]'
         )
 
     def test_assignment_3(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -diff_type=dD -metric gDD::4D
-                % vardef -diff_type=dD vU::4D
+                % vardef -diff_suffix=dD -metric gDD::4D
+                % vardef -diff_suffix=dD vU::4D
                 % attrib index [a-z]::4D
                 T^{ab} = \nabla^b v^a
             """)),
@@ -156,7 +157,7 @@ class TestParser(unittest.TestCase):
                 u_x = x^2 + 2x \\
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
-                % assign -diff_type=dD wD, vD
+                % assign -diff_suffix=dD wD, vD
                 T_{ab} = \partial_b v_a
             """)),
             {'x', 'y', 'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
@@ -168,27 +169,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_5(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % attrib coord [x, y]
-                % vardef uD::2D, wD::2D
-                % assign -diff_type=symbolic uD
-                % attrib index [a-z]::2D
-                u_x = x^2 + 2x \\
-                u_y = y\sqrt{x} \\
-                v_a = u_a + w_a \\
-                T_{bc} = \vphantom{dD} \partial_c v_b
-            """)),
-            {'x', 'y', 'uD', 'wD', 'vD', 'vD_dD', 'wD_dD', 'TDD'}
-        )
-        self.assertEqual(str(TDD),
-            '[[wD_dD00 + 2*x + 2, wD_dD01], [wD_dD10 + y/(2*sqrt(x)), wD_dD11 + sqrt(x)]]'
-        )
-
-    def test_assignment_6(self):
-        self.assertEqual(
-            set(parse_latex(r"""
-                    % vardef vD::2D, uD::2D, wD::2D
+                    % vardef -diff_suffix=dD vD::2D, uD::2D, wD::2D
                     % attrib index [a-z]::2D
-                    T_{abc} = \vphantom{dD} ((v_a + u_a)_{,b} - w_{a,b})_{,c}
+                    T_{abc} = ((v_a + u_a)_{,b} - w_{a,b})_{,c}
             """)),
             {'vD', 'uD', 'wD', 'TDDD', 'uD_dD', 'vD_dD', 'wD_dD', 'wD_dDD', 'uD_dDD', 'vD_dDD'}
         )
@@ -196,11 +179,11 @@ class TestParser(unittest.TestCase):
             'uD_dDD000 + vD_dDD000 - wD_dDD000'
         )
 
-    def test_assignment_7(self):
+    def test_assignment_6(self):
         parse_latex(r"""
             % attrib coord [\theta, \phi]
             % vardef -zero gDD::2D
-            % vardef -const r
+            % assign -const r
             % attrib index [a-z]::2D
             \begin{align*}
                 g_{0 0} &= r^2 \\
@@ -235,7 +218,7 @@ class TestParser(unittest.TestCase):
             '2/r**2'
         )
 
-    def test_assignment_8(self):
+    def test_assignment_7(self):
         self.assertEqual(
             set(parse_latex(r"""
                 % vardef -symmetry=sym01 gDD::4D
@@ -247,13 +230,13 @@ class TestParser(unittest.TestCase):
             '[[gDD11, gDD12, gDD13], [gDD12, gDD22, gDD23], [gDD13, gDD23, gDD33]]'
         )
 
-    def test_assignment_9(self):
+    def test_assignment_8(self):
         self.assertEqual(
             set(parse_latex(r"""
                 % vardef TUU::3D
                 % vardef vD::2D
                 % attrib index i::2D
-                w^\mu = T^{\mu i} v_i
+                w^a = T^{a i} v_i
             """)),
             {'TUU', 'vD', 'wU'}
         )
@@ -261,20 +244,20 @@ class TestParser(unittest.TestCase):
             '[TUU01*vD0 + TUU02*vD1, TUU11*vD0 + TUU12*vD1, TUU21*vD0 + TUU22*vD1]'
         )
 
-    def test_assignment_10(self):
+    def test_assignment_9(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -metric gDD
-                % vardef ADDD, AUUU
+                % vardef -metric gDD::3D
+                % vardef ADDD::3D, AUUU::3D
                 B^{a b}_c = A^{a b}_c
             """)),
             {'gDD', 'epsilonUUU', 'gdet', 'gUU', 'GammaUDD', 'ADDD', 'AUUU', 'AUUD', 'BUUD'}
         )
 
-    def test_assignment_11(self):
+    def test_assignment_10(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef vD
+                % vardef vD::3D
                 w = v_{x_2}
             """)),
             {'vD', 'w'}
@@ -283,11 +266,11 @@ class TestParser(unittest.TestCase):
             'vD2'
         )
 
-    def test_assignment_12(self):
+    def test_assignment_11(self):
         self.assertEqual(
             set(parse_latex(r"""
                 % attrib coord [x, y, z]
-                % vardef -zero vD
+                % vardef -zero vD::3D
                 v_z = y^2 + 2y \\
                 w = v_{x_2}
             """)),
@@ -297,33 +280,33 @@ class TestParser(unittest.TestCase):
             'y**2 + 2*y'
         )
 
-    def test_assignment_13(self):
+    def test_assignment_12(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -kron deltaDD
+                % vardef -kron deltaDD::3D
                 % parse \hat{\gamma}_{ij} = \delta_{ij}
-                % assign -diff_type=symbolic -metric gammahatDD
-                % vardef -diff_type=dD -symmetry=sym01 hDD
+                % assign -diff_suffix=none -metric gammahatDD
+                % vardef -diff_suffix=dD -symmetry=sym01 hDD::3D
                 % parse \bar{\gamma}_{ij} = h_{ij} + \hat{\gamma}_{ij}
-                % assign -diff_type=dD -metric gammabarDD
+                % assign -diff_suffix=dD -metric gammabarDD
             """)),
             {'gammabardet', 'GammabarUDD', 'gammabarDD', 'gammabarDD_dD', 'gammahatdet', 'hDD', 'GammahatUDD', 'hDD_dD', 'gammahatUU', 'deltaDD', 'gammabarUU', 'epsilonUUU', 'gammahatDD'}
         )
 
-    def test_assignment_14(self):
+    def test_assignment_13(self):
         self.assertEqual(
             set(parse_latex(r"""
                 % attrib coord [r, \theta, \phi]
-                % vardef vD
+                % vardef vD::3D
                 % parse v_0 = 1
                 % parse v_1 = r
                 % parse v_2 = r \sin \theta
                 % parse R_{ij} = v_i v_j
-                % vardef -zero gammahatDD
+                % vardef -zero gammahatDD::3D
                 % parse \hat{\gamma}_{ii} = R_{ii} % noimpsum
-                % vardef -diff_type=dD hDD
+                % vardef -diff_suffix=dD hDD::3D
                 % parse \bar{\gamma}_{ij} = h_{ij} R_{ij} + \hat{\gamma}_{ij} % noimpsum
-                % assign -diff_type=dD gammabarDD
+                % assign -diff_suffix=dD gammabarDD
                 T_{ijk} = \partial_k \bar{\gamma}_{ij}
             """)),
             {'gammabarDD_dD', 'RDD', 'r', 'vD', 'theta', 'gammahatDD', 'TDDD', 'hDD', 'gammabarDD', 'hDD_dD'}
@@ -375,27 +358,27 @@ class TestParser(unittest.TestCase):
     def test_example_4(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -diff_type=dD -symmetry=anti01 FUU::4D
-                % vardef -diff_type=dD -metric gDD::4D
-                % vardef -const k
+                % vardef -diff_suffix=dD -symmetry=anti01 FUU::4D
+                % vardef -diff_suffix=dD -metric gDD::4D
+                % assign -const k
                 J^\mu = (4\pi k)^{-1} F^{\mu\nu}_{;\nu}
             """)),
             {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'k', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -diff_type=dD -symmetry=anti01 FUU::4D
-                % vardef -diff_type=dD -metric gDD::4D
-                % vardef -const k
+                % vardef -diff_suffix=dD -symmetry=anti01 FUU::4D
+                % vardef -diff_suffix=dD -metric gDD::4D
+                % assign -const k
                 J^\mu = (4\pi k)^{-1} \nabla_\nu F^{\mu\nu}
             """)),
             {'FUU', 'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'k', 'FUU_dD', 'gDD_dD', 'GammaUDD', 'FUU_cdD', 'JU'}
         )
         self.assertEqual(
             set(parse_latex(r"""
-                % vardef -diff_type=dD -symmetry=anti01 FUU::4D
-                % vardef -diff_type=dD -metric ghatDD::4D
-                % vardef -const k
+                % vardef -diff_suffix=dD -symmetry=anti01 FUU::4D
+                % vardef -diff_suffix=dD -metric ghatDD::4D
+                % assign -const k
                 J^\mu = (4\pi k)^{-1} \hat{\nabla}_\nu F^{\mu\nu}
             """)),
             {'FUU', 'ghatUU', 'ghatdet', 'epsilonUUUU', 'k',  'ghatDD', 'FUU_dD', 'ghatDD_dD', 'GammahatUDD', 'FUU_cdhatD', 'JU'}
@@ -405,7 +388,7 @@ class TestParser(unittest.TestCase):
         nl.parse_latex(r"""
             % attrib coord [t, r, \theta, \phi]
             % vardef -zero gDD::4D
-            % vardef -const G, M
+            % assign -const G, M
             \begin{align}
                 g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
                 g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
@@ -511,7 +494,7 @@ class TestParser(unittest.TestCase):
     @staticmethod
     def test_metric_symmetry():
         parse_latex(r"""
-            % vardef -zero gDD
+            % vardef -zero gDD::3D
             g_{1 0} = 1 \\
             g_{2 0} = 2
             % assign -metric gDD
@@ -519,7 +502,7 @@ class TestParser(unittest.TestCase):
         assert_equal(gDD[0][1], 1, suppress_message=True)
         assert_equal(gDD[0][2], 2, suppress_message=True)
         parse_latex(r"""
-            % vardef -zero gDD
+            % vardef -zero gDD::3D
             g_{0 1} = 1 \\
             g_{0 2} = 2
             % assign -metric gDD
@@ -532,6 +515,7 @@ class TestParser(unittest.TestCase):
         for DIM in range(2, 5):
             parse_latex(r"""
                 % vardef -metric gDD::{DIM}D
+                % attrib index [a-c]::{DIM}D
                 \Delta^a_c = g^{{ab}} g_{{bc}}
             """.format(DIM=DIM))
             for i in range(DIM):
@@ -541,6 +525,7 @@ class TestParser(unittest.TestCase):
         for DIM in range(2, 5):
             parse_latex(r"""
                 % vardef -metric gUU::{DIM}D
+                % attrib index [a-c]::{DIM}D
                 \Delta^a_c = g^{{ab}} g_{{bc}}
             """.format(DIM=DIM))
             for i in range(DIM):
