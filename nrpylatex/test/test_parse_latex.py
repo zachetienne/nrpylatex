@@ -57,9 +57,9 @@ class TestParser(unittest.TestCase):
 
     def test_expression_5(self):
         parse_latex(r"""
-            % define gDD --dim 4D --deriv dD --metric
-            % define vU --dim 4D --deriv dD
-            % index b --dim 4D
+            % define gDD --dim 4 --deriv dD --metric
+            % define vU --dim 4 --deriv dD
+            % index b --dim 4
             T^\mu_b = \nabla_b v^\mu
         """)
         function = sp.Function('Tensor')(sp.Symbol('vU_cdD'), sp.Symbol('mu'), sp.Symbol('b'))
@@ -115,8 +115,8 @@ class TestParser(unittest.TestCase):
     def test_assignment_1(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define vU wU --dim 2D --deriv dD
-                % index [a-z] --dim 2D
+                % define vU wU --dim 2 --deriv dD
+                % index [a-z] --dim 2
                 T^{ab}_c = \partial_c (v^a w^b)
             """)),
             {'vU', 'wU', 'vU_dD', 'wU_dD', 'TUUD'}
@@ -128,9 +128,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_2(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define vU --dim 2D --deriv dD
+                % define vU --dim 2 --deriv dD
                 % define w --const
-                % index [a-z] --dim 2D
+                % index [a-z] --dim 2
                 T^a_c = % deriv dupD
                 \partial_c (v^a w)
             """)),
@@ -143,9 +143,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_3(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define gDD --dim 4D --deriv dD --metric
-                % define vU --dim 4D --deriv dD
-                % index [a-z] --dim 4D
+                % define gDD --dim 4 --deriv dD --metric
+                % define vU --dim 4 --deriv dD
+                % index [a-z] --dim 4
                 T^{ab} = \nabla^b v^a
             """)),
             {'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'vU', 'vU_dD', 'gDD_dD', 'GammaUDD', 'vU_cdD', 'vU_cdU', 'TUU'}
@@ -155,8 +155,8 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             set(parse_latex(r"""
                 % coord [x, y]
-                % define uD wD --dim 2D
-                % index [a-z] --dim 2D
+                % define uD wD --dim 2
+                % index [a-z] --dim 2
                 u_x = x^2 + 2x \\
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
@@ -172,8 +172,8 @@ class TestParser(unittest.TestCase):
     def test_assignment_5(self):
         self.assertEqual(
             set(parse_latex(r"""
-                    % define vD uD wD --dim 2D --deriv dD
-                    % index [a-z] --dim 2D
+                    % define vD uD wD --dim 2 --deriv dD
+                    % index [a-z] --dim 2
                     T_{abc} = ((v_a + u_a)_{,b} - w_{a,b})_{,c}
             """)),
             {'vD', 'uD', 'wD', 'TDDD', 'uD_dD', 'vD_dD', 'wD_dD', 'wD_dDD', 'uD_dDD', 'vD_dDD'}
@@ -185,9 +185,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_6(self):
         parse_latex(r"""
             % coord [\theta, \phi]
-            % define gDD --dim 2D --zero
+            % define gDD --dim 2 --zero
             % define r --const
-            % index [a-z] --dim 2D
+            % index [a-z] --dim 2
             % ignore "\begin{align*}" "\end{align*}"
             \begin{align*}
                 g_{0 0} &= r^2 \\
@@ -225,7 +225,7 @@ class TestParser(unittest.TestCase):
     def test_assignment_7(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define gDD --dim 4D --sym sym01
+                % define gDD --dim 4 --sym sym01
                 \gamma_{ij} = g_{ij}
             """)),
             {'gDD', 'gammaDD'}
@@ -237,9 +237,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_8(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define TUU --dim 3D
-                % define vD --dim 2D
-                % index i --dim 2D
+                % define TUU --dim 3
+                % define vD --dim 2
+                % index i --dim 2
                 w^a = T^{a i} v_i
             """)),
             {'TUU', 'vD', 'wU'}
@@ -251,8 +251,8 @@ class TestParser(unittest.TestCase):
     def test_assignment_9(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define gDD --dim 3D --metric
-                % define ADDD AUUU --dim 3D
+                % define gDD --dim 3 --metric
+                % define ADDD AUUU --dim 3
                 B^{a b}_c = A^{a b}_c
             """)),
             {'gDD', 'epsilonUUU', 'gdet', 'gUU', 'GammaUDD', 'ADDD', 'AUUU', 'AUUD', 'BUUD'}
@@ -261,7 +261,7 @@ class TestParser(unittest.TestCase):
     def test_assignment_10(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define vD --dim 3D
+                % define vD --dim 3
                 w = v_{x_2}
             """)),
             {'vD', 'w'}
@@ -274,7 +274,7 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             set(parse_latex(r"""
                 % coord [x, y, z]
-                % define vD --dim 3D --zero
+                % define vD --dim 3 --zero
                 v_z = y^2 + 2y \\
                 w = v_{x_2}
             """)),
@@ -287,10 +287,10 @@ class TestParser(unittest.TestCase):
     def test_assignment_12(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define deltaDD --dim 3D --kron
+                % define deltaDD --dim 3 --kron
                 % \hat{\gamma}_{ij} = \delta_{ij}
                 % assign gammahatDD --metric
-                % define hDD --dim 3D --deriv dD --sym sym01
+                % define hDD --dim 3 --deriv dD --sym sym01
                 % \bar{\gamma}_{ij} = h_{ij} + \hat{\gamma}_{ij}
                 % assign gammabarDD --deriv dD --metric
             """)),
@@ -301,14 +301,14 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             set(parse_latex(r"""
                 % coord [r, \theta, \phi]
-                % define vD --dim 3D
+                % define vD --dim 3
                 % v_0 = 1
                 % v_1 = r
                 % v_2 = r \sin \theta
                 % R_{ij} = v_i v_j
-                % define gammahatDD --dim 3D --zero
+                % define gammahatDD --dim 3 --zero
                 % \hat{\gamma}_{ii} = R_{ii} % noimpsum
-                % define hDD --dim 3D --deriv dD
+                % define hDD --dim 3 --deriv dD
                 % \bar{\gamma}_{ij} = h_{ij} R_{ij} + \hat{\gamma}_{ij} % noimpsum
                 % assign gammabarDD --deriv dD
                 T_{ijk} = \partial_k \bar{\gamma}_{ij}
@@ -325,7 +325,7 @@ class TestParser(unittest.TestCase):
     def test_example_1(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define hUD --dim 4D
+                % define hUD --dim 4
                 h = h^\mu{}_\mu
             """)),
             {'hUD', 'h'}
@@ -337,8 +337,8 @@ class TestParser(unittest.TestCase):
     def test_example_2(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define gUU --dim 3D --metric
-                % define vD --dim 3D
+                % define gUU --dim 3 --metric
+                % define vD --dim 3
                 v^\mu = g^{\mu\nu} v_\nu
             """)),
             {'gUU', 'epsilonDDD', 'gdet', 'gDD', 'GammaUDD', 'vD', 'vU'}
@@ -350,7 +350,7 @@ class TestParser(unittest.TestCase):
     def test_example_3(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define vU wU --dim 3D
+                % define vU wU --dim 3
                 u_i = \epsilon_{ijk} v^j w^k
             """)),
             {'epsilonDDD', 'vU', 'wU', 'uD'}
@@ -362,8 +362,8 @@ class TestParser(unittest.TestCase):
     def test_example_4(self):
         self.assertEqual(
             set(parse_latex(r"""
-                % define FUU --dim 4D --deriv dD --sym anti01
-                % define gDD --dim 4D --deriv dD --metric
+                % define FUU --dim 4 --deriv dD --sym anti01
+                % define gDD --dim 4 --deriv dD --metric
                 % define k --const
                 J^\mu = (4\pi k)^{-1} F^{\mu\nu}_{;\nu}
             """)),
@@ -371,8 +371,8 @@ class TestParser(unittest.TestCase):
         )
         self.assertEqual(
             set(parse_latex(r"""
-                % define FUU --dim 4D --deriv dD --sym anti01
-                % define gDD --dim 4D --deriv dD --metric
+                % define FUU --dim 4 --deriv dD --sym anti01
+                % define gDD --dim 4 --deriv dD --metric
                 % define k --const
                 J^\mu = (4\pi k)^{-1} \nabla_\nu F^{\mu\nu}
             """)),
@@ -380,8 +380,8 @@ class TestParser(unittest.TestCase):
         )
         self.assertEqual(
             set(parse_latex(r"""
-                % define FUU --dim 4D --deriv dD --sym anti01
-                % define ghatDD --dim 4D --deriv dD --metric
+                % define FUU --dim 4 --deriv dD --sym anti01
+                % define ghatDD --dim 4 --deriv dD --metric
                 % define k --const
                 J^\mu = (4\pi k)^{-1} \hat{\nabla}_\nu F^{\mu\nu}
             """)),
@@ -391,7 +391,7 @@ class TestParser(unittest.TestCase):
     def test_example_5_1(self):
         nl.parse_latex(r"""
             % coord [t, r, \theta, \phi]
-            % define gDD --dim 4D --zero
+            % define gDD --dim 4 --zero
             % define G M --const
             % ignore "\begin{align}" "\end{align}"
             \begin{align}
@@ -499,7 +499,7 @@ class TestParser(unittest.TestCase):
     @staticmethod
     def test_metric_symmetry():
         parse_latex(r"""
-            % define gDD --dim 3D --zero
+            % define gDD --dim 3 --zero
             g_{1 0} = 1 \\
             g_{2 0} = 2
             % assign gDD --metric
@@ -507,7 +507,7 @@ class TestParser(unittest.TestCase):
         assert_equal(gDD[0][1], 1, suppress_message=True)
         assert_equal(gDD[0][2], 2, suppress_message=True)
         parse_latex(r"""
-            % define gDD --dim 3D --zero
+            % define gDD --dim 3 --zero
             g_{0 1} = 1 \\
             g_{0 2} = 2
             % assign gDD --metric
@@ -519,8 +519,8 @@ class TestParser(unittest.TestCase):
     def test_metric_inverse():
         for DIM in range(2, 5):
             parse_latex(r"""
-                % define gDD --dim {DIM}D --metric
-                % index [a-c] --dim {DIM}D
+                % define gDD --dim {DIM} --metric
+                % index [a-c] --dim {DIM}
                 \Delta^a_c = g^{{ab}} g_{{bc}}
             """.format(DIM=DIM))
             for i in range(DIM):
@@ -529,8 +529,8 @@ class TestParser(unittest.TestCase):
                     assert_equal(DeltaUD[i][j], value, suppress_message=True)
         for DIM in range(2, 5):
             parse_latex(r"""
-                % define gUU --dim {DIM}D --metric
-                % index [a-c] --dim {DIM}D
+                % define gUU --dim {DIM} --metric
+                % index [a-c] --dim {DIM}
                 \Delta^a_c = g^{{ab}} g_{{bc}}
             """.format(DIM=DIM))
             for i in range(DIM):

@@ -34,7 +34,6 @@ class Lexer(object):
             ('SYMMETRY',        symmetry),
             ('STRING',          r'\"[^\"]*\"'),
             ('GROUP',           r'\<[0-9]+(\.{2})?\>'),
-            ('DIMENSION',       r'[2-9][0-9]*D'),
             ('RATIONAL',        r'\-?[0-9]+\/\-?[1-9][0-9]*'),
             ('DECIMAL',         r'\-?[0-9]+\.[0-9]+'),
             ('INTEGER',         r'\-?[0-9]+'),
@@ -192,8 +191,8 @@ class Parser:
         #     <IGNORE>    -> <IGNORE_MACRO> { <STRING> }+
         #     <SREPL>     -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
         #     <COORD>     -> <COORD_MACRO> ( <DEFAULT> | <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> )
-        #     <INDEX>     -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <DIMENSION>
-        # <OPTION>        -> <DIM> <DIMENSION> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
+        #     <INDEX>     -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <INTEGER>
+        # <OPTION>        -> <DIM> <INTEGER> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
         # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION> [ '\\' ] [ '%' <NOIMPSUM> ]
         # <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
         # <TERM>          -> <FACTOR> { [ '/' ] <FACTOR> }*
@@ -213,7 +212,7 @@ class Parser:
         # <LIEDRV>        -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
         # <TENSOR>        -> <SYMBOL> [ ( '_' <INDEXING_4> ) | ( '^' <INDEXING_3> [ '_' <INDEXING_4> ] ) ]
         # <SYMBOL>        -> <LETTER> | <DIACRITIC> '{' <SYMBOL> '}' | <TEXT_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}'
-        # <INDEXING_1>    -> <LETTER> [ '_' <INDEXING_2> ] | <INTEGER> # TODO REMOVE INFINITE RECURSION
+        # <INDEXING_1>    -> <LETTER> [ '_' <INDEXING_2> ] | <INTEGER>
         # <INDEXING_2>    -> <LETTER> | <INTEGER> | '{' <INDEXING_1> '}'
         # <INDEXING_3>    -> <INDEXING_2> | '{' { <INDEXING_1> }+ '}'
         # <INDEXING_4>    -> <INDEXING_2> | '{' ( ',' | ';' ) { <INDEXING_1> }+ | { <INDEXING_1> }+ [ ( ',' | ';' ) { <INDEXING_1> }+ ] '}'
@@ -606,7 +605,7 @@ class Parser:
                 if not self.accept('COMMA'): break
             self.expect('RBRACK')
 
-    # <INDEX> -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <DIMENSION>
+    # <INDEX> -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <INTEGER>
     def _index(self):
         self.expect('INDEX_MACRO')
         if self.accept('LBRACK'):
@@ -624,17 +623,17 @@ class Parser:
         self.expect('MINUS')
         self.expect('DIM')
         dimension = self.lexer.lexeme
-        self.expect('DIMENSION')
-        dimension = int(dimension[:-1])
+        self.expect('INTEGER')
+        dimension = int(dimension)
         self._property['index'].update({index: dimension for index in indices})
 
-    # <OPTION> -> <DIM> <DIMENSION> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
+    # <OPTION> -> <DIM> <INTEGER> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
     def _option(self):
         if self.accept('DIM'):
             self.accept('WHITESPACE')
             dimension = self.lexer.lexeme
-            self.expect('DIMENSION')
-            return 'dimension<>' + dimension[:-1]
+            self.expect('INTEGER')
+            return 'dimension<>' + dimension
         if self.accept('SYM'):
             self.accept('WHITESPACE')
             symmetry = self.lexer.lexeme
@@ -651,7 +650,7 @@ class Parser:
             return 'suffix<>' + suffix
         if self.accept('METRIC'):
             self.accept('WHITESPACE')
-            if self.accept('LETTER'):
+            if self.peek('LETTER'):
                 metric = self._variable()
                 return 'metric<>' + metric
             return 'symmetry<>metric'
@@ -729,8 +728,13 @@ class Parser:
         while any(self.peek(token) for token in ('DIVIDE',
                 'RATIONAL', 'DECIMAL', 'INTEGER', 'PI', 'PAR_SYM', 'COV_SYM', 'LIE_SYM',
                 'TEXT_CMD', 'FUNC_CMD', 'FRAC_CMD', 'SQRT_CMD', 'NLOG_CMD', 'TRIG_CMD',
-                'LPAREN', 'LBRACK', 'DIACRITIC', 'LETTER', 'COMMAND', 'ESCAPE')):
+                'LPAREN', 'LBRACK', 'DIACRITIC', 'LETTER', 'COMMAND', 'COMMENT', 'ESCAPE')):
             self.lexer.mark()
+            if self.accept('COMMENT'):
+                if not self.peek('DERIV'):
+                    self.lexer.reset()
+                    return expr
+                self.lexer.reset()
             if self.accept('ESCAPE'):
                 if self.peek('RBRACE'):
                     self.lexer.reset()
@@ -1655,10 +1659,10 @@ class Parser:
 \text{{{symbol}}}_{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \text{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
                 .format(symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'), dimension=dimension,
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
+            latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
             if suffix:
                 latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
                     .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'))
-            else: latex_config += r' \\'
         else:
             prefix = r'\epsilon^{' + ' '.join('i_' + str(i) for i in range(1, 1 + dimension)) + '} ' + \
                      r'\epsilon^{' + ' '.join('j_' + str(i) for i in range(1, 1 + dimension)) + '} '
@@ -1669,10 +1673,10 @@ class Parser:
 \text{{{symbol}}}^{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \text{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
                 .format(symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'), dimension=dimension,
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
+            latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
             if suffix:
                 latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
                     .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'))
-            else: latex_config += r' \\'
         metric = '\\text{' + re.split(r'[UD]', symbol)[0] + '}'
         latex_config += '\n' + r'\text{{Gamma{diacritic}}}^{{i_1}}_{{i_2 i_3}} = \frac{{1}}{{2}} {metric}^{{i_1 i_4}} (\partial_{{i_2}} {metric}_{{i_3 i_4}} + \partial_{{i_3}} {metric}_{{i_4 i_2}} - \partial_{{i_4}} {metric}_{{i_2 i_3}})'.format(metric=metric, diacritic=diacritic)
         return latex_config
