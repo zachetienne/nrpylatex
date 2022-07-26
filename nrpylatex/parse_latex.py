@@ -359,36 +359,35 @@ class Parser:
     def _define(self):
         self.lexer.whitespace = True
         self.expect('DEFINE_MACRO')
-        self.accept('WHITESPACE')
+        self.expect('WHITESPACE')
         symbols = []
         while True:
             symbols.append(self._variable())
-            self.accept('WHITESPACE')
+            if not self.peek('EOL') :
+                self.expect('WHITESPACE')
             if self.peek('MINUS') or self.peek('EOL'): break
         dimension = suffix = symmetry = metric = weight = None
         zero = kron = const = False
-        self.accept('WHITESPACE')
         while self.accept('MINUS'):
             self.expect('MINUS')
             zero = self.accept('ZERO')
             kron = self.accept('KRON')
             const = self.accept('CONST')
-            if zero or kron or const:
-                self.accept('WHITESPACE')
-                continue
-            option, value = self._option().split('<>')
-            if option == 'dimension':
-                dimension = int(value)
-            elif option == 'suffix':
-                if suffix != 'none':
-                    suffix = value
-            elif option == 'symmetry':
-                symmetry = value
-            elif option == 'metric':
-                metric = value
-            elif option == 'weight':
-                weight = value
-            self.accept('WHITESPACE')
+            if not (zero or kron or const):
+                option, value = self._option().split('<>')
+                if option == 'dimension':
+                    dimension = int(value)
+                elif option == 'suffix':
+                    if suffix != 'none':
+                        suffix = value
+                elif option == 'symmetry':
+                    symmetry = value
+                elif option == 'metric':
+                    metric = value
+                elif option == 'weight':
+                    weight = value
+                if not self.peek('EOL'):
+                    self.expect('WHITESPACE')
         for symbol in symbols:
             if const:
                 self._namespace[symbol] = Function('Constant')(Symbol(symbol, real=True))
@@ -414,14 +413,14 @@ class Parser:
     def _assign(self):
         self.lexer.whitespace = True
         self.expect('ASSIGN_MACRO')
-        self.accept('WHITESPACE')
+        self.expect('WHITESPACE')
         symbols = []
         while True:
             symbols.append(self._variable())
-            self.accept('WHITESPACE')
+            if not self.peek('EOL') :
+                self.expect('WHITESPACE')
             if self.peek('MINUS') or self.peek('EOL'): break
         dimension = suffix = symmetry = metric = weight = None
-        self.accept('WHITESPACE')
         while True:
             self.expect('MINUS')
             self.expect('MINUS')
@@ -437,7 +436,8 @@ class Parser:
                 metric = value
             elif option == 'weight':
                 weight = value
-            self.accept('WHITESPACE')
+            if not self.peek('EOL') :
+                self.expect('WHITESPACE')
             if not self.peek('MINUS'): break
         for symbol in symbols:
             if symbol not in self._namespace:
@@ -495,7 +495,7 @@ class Parser:
     def _ignore(self):
         self.lexer.whitespace = True
         self.expect('IGNORE_MACRO')
-        self.accept('WHITESPACE')
+        self.expect('WHITESPACE')
         while True:
             string = self.lexer.lexeme[1:-1]
             if len(string) > 0 and string not in self._property['ignore']:
@@ -503,29 +503,36 @@ class Parser:
             sentence, position = self.lexer.sentence, self.lexer.index
             self.lexer.mark()
             self.expect('STRING')
-            self.accept('WHITESPACE')
+            if not self.peek('EOL') :
+                self.expect('WHITESPACE')
             if len(string) > 0:
                 self.lexer.sentence = sentence[:position] + sentence[position:].replace(string, '')
             if not self.peek('STRING'): break
-        self.lexer.reset(); self.lexer.lex()
-        self.accept('EOL')
         self.lexer.whitespace = False
+        self.lexer.reset(); self.lexer.lex()
 
         # <SREPL> -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
     def _srepl(self):
+        self.lexer.whitespace = True
         self.expect('SREPL_MACRO')
+        self.expect('WHITESPACE')
         old = self.lexer.lexeme[1:-1]
         self.expect('STRING')
+        self.expect('WHITESPACE')
         self.expect('ARROW')
+        self.expect('WHITESPACE')
         new = self.lexer.lexeme[1:-1]
         self.lexer.mark()
         self.expect('STRING')
+        if not self.peek('EOL') :
+            self.expect('WHITESPACE')
         persist = False
         if self.accept('MINUS'):
             self.expect('MINUS')
             self.lexer.mark()
             self.expect('PERSIST')
             persist = True
+        self.lexer.whitespace = False
         if persist and [old, new] not in self._property['srepl']:
             self._property['srepl'].append([old, new])
         self.lexer.reset(); self.lexer.mark()
@@ -589,7 +596,10 @@ class Parser:
 
     # <COORD> -> <COORD_MACRO> ( <DEFAULT> | <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> )
     def _coord(self):
+        self.lexer.whitespace = True
         self.expect('COORD_MACRO')
+        self.expect('WHITESPACE')
+        self.lexer.whitespace = False
         if self.accept('DEFAULT'):
             self._property['coord'] = CoordinateSystem('x')
         else:
@@ -607,7 +617,10 @@ class Parser:
 
     # <INDEX> -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <INTEGER>
     def _index(self):
+        self.lexer.whitespace = True
         self.expect('INDEX_MACRO')
+        self.expect('WHITESPACE')
+        self.lexer.whitespace = False
         if self.accept('LBRACK'):
             index_1 = self._strip(self.lexer.lexeme)
             self.expect('LETTER')
@@ -615,15 +628,20 @@ class Parser:
             index_2 = self._strip(self.lexer.lexeme)
             self.expect('LETTER')
             indices = [chr(i) for i in range(ord(index_1), ord(index_2) + 1)]
+            self.lexer.whitespace = True
             self.expect('RBRACK')
         else:
             indices = [self._strip(self.lexer.lexeme)]
+            self.lexer.whitespace = True
             self.expect('LETTER')
+        self.expect('WHITESPACE')
         self.expect('MINUS')
         self.expect('MINUS')
         self.expect('DIM')
+        self.expect('WHITESPACE')
         dimension = self.lexer.lexeme
         self.expect('INTEGER')
+        self.lexer.whitespace = False
         dimension = int(dimension)
         self._property['index'].update({index: dimension for index in indices})
 
@@ -1755,6 +1773,8 @@ class Parser:
         return symbol[1:] if symbol[0] == '\\' else symbol
 
     def peek(self, token):
+        if self.lexer.token is None and token == 'EOL':
+            return True
         return self.lexer.token == token
 
     def accept(self, token):
