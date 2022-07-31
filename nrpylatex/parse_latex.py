@@ -1099,24 +1099,31 @@ class Parser:
                 (sentence[position], position), sentence, position)
         func_list, expression = self._expand_product(location, 'cd' + diacritic, index[1], index[0])
         for symbol, function in func_list:
-            equation = [operator, ' = ', '', operator]
-            idx_gen = index_count()
-            indexing = [str(i) for i in function.args[1:]] + [str(index[0])]
-            for i, idx in enumerate(indexing):
-                if idx in indexing[:i]:
-                    indexing[i] = next(x for x in idx_gen if x not in indexing)
-            latex = Tensor.latex_format(Function('Tensor')(function.args[0],
-                        *(Symbol(i) for i in indexing[:-1])))
-            covdrv_index = indexing[-1]
             if index[1] == 'U':
-                equation[0] += '^{' + covdrv_index + '} '
-                bound_index = next(x for x in idx_gen if x not in indexing)
-                equation[2] += '%s^{%s %s} ' % (metric, covdrv_index, bound_index)
-                equation[3] += '_{' + bound_index + '} '
-            else:
-                equation[0] += '_{' + covdrv_index + '} '
-                equation[3] += '_{' + covdrv_index + '} '
-            equation[0], equation[3] = equation[0] + latex, equation[3] + latex
+                equation = [operator, ' = ', '', operator]
+                idx_gen = index_count()
+                indexing = [str(i) for i in function.args[1:]] + [str(index[0])]
+                for i, idx in enumerate(indexing):
+                    if idx in indexing[:i]:
+                        indexing[i] = next(x for x in idx_gen if x not in indexing)
+                latex = Tensor.latex_format(Function('Tensor')(function.args[0],
+                            *(Symbol(i) for i in indexing[:-1])))
+                covdrv_index = indexing[-1]
+                if '_' in str(covdrv_index):
+                    base, subscript = str(covdrv_index).split('_')
+                    if len(base) > 1:
+                        covdrv_index = '\\%s_%s' % (base, subscript)
+                elif len(str(covdrv_index)) > 1:
+                    covdrv_index = '\\' + str(covdrv_index)
+                if index[1] == 'U':
+                    equation[0] += '^{' + covdrv_index + '} '
+                    bound_index = next(x for x in idx_gen if x not in indexing)
+                    equation[2] += '%s^{%s %s} ' % (metric, covdrv_index, bound_index)
+                    equation[3] += '_{' + bound_index + '} '
+                else:
+                    equation[0] += '_{' + covdrv_index + '} '
+                    equation[3] += '_{' + covdrv_index + '} '
+                equation[0], equation[3] = equation[0] + latex, equation[3] + latex
             if location == 'RHS' and (self._property['suffix'] or symbol not in self._namespace):
                 with self.lexer.new_context():
                     if index[1] == 'U':
