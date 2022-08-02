@@ -190,8 +190,8 @@ class Parser:
         #     <ASSIGN>    -> <ASSIGN_MACRO> { <VARIABLE> }+ { '--' <OPTION> }+
         #     <IGNORE>    -> <IGNORE_MACRO> { <STRING> }+
         #     <SREPL>     -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
-        #     <COORD>     -> <COORD_MACRO> ( <DEFAULT> | <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> )
-        #     <INDEX>     -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <INTEGER>
+        #     <COORD>     -> <COORD_MACRO> ( <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> | '--' <DEFAULT> )
+        #     <INDEX>     -> <INDEX_MACRO> [ { <LETTER> | '[' <LETTER> '-' <LETTER> ']' }+ | '--' <DEFAULT> ] '--' <DIM> <INTEGER>
         # <OPTION>        -> <DIM> <INTEGER> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
         # <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION> [ '\\' ] [ '%' <NOIMPSUM> ]
         # <EXPRESSION>    -> <TERM> { ( '+' | '-' ) <TERM> }*
@@ -242,6 +242,11 @@ class Parser:
         Parser._property['srepl'] = []
         Parser._property['coord'] = CoordinateSystem('x')
         Parser._property['index'] = {chr(i): 3 for i in range(97, 123)}
+        Parser._property['index'].update({i: 4 for i in [
+            'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'zeta', 'eta', 'theta',
+            'iota', 'kappa', 'lambda', 'mu', 'nu', 'xi', 'omikron', 'pi', 'rho',
+            'sigma', 'tau', 'upsilon', 'phi', 'chi', 'psi', 'omega'
+        ]})
         Parser._property['ignore'] = ['\\left', '\\right', '{}', '&']
         Parser._property['metric'] = {'': 'g', 'bar': 'g', 'hat': 'g', 'tilde': 'gamma'}
         Parser._property['suffix'] = None
@@ -594,13 +599,15 @@ class Parser:
         self.lexer.sentence = sentence
         self.lexer.reset(); self.lexer.lex()
 
-    # <COORD> -> <COORD_MACRO> ( <DEFAULT> | <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> )
+    # <COORD> -> <COORD_MACRO> ( <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> | '--' <DEFAULT> )
     def _coord(self):
         self.lexer.whitespace = True
         self.expect('COORD_MACRO')
         self.expect('WHITESPACE')
         self.lexer.whitespace = False
-        if self.accept('DEFAULT'):
+        if self.accept('MINUS'):
+            self.expect('MINUS')
+            self.expect('DEFAULT')
             self._property['coord'] = CoordinateSystem('x')
         else:
             self.expect('LBRACK')
@@ -615,34 +622,48 @@ class Parser:
                 if not self.accept('COMMA'): break
             self.expect('RBRACK')
 
-    # <INDEX> -> <INDEX_MACRO> ( <LETTER> | '[' <LETTER> '-' <LETTER> ']' ) '--' <DIM> <INTEGER>
+    # <INDEX> -> <INDEX_MACRO> [ { <LETTER> | '[' <LETTER> '-' <LETTER> ']' }+ | '--' <DEFAULT> ] '--' <DIM> <INTEGER>
     def _index(self):
         self.lexer.whitespace = True
         self.expect('INDEX_MACRO')
         self.expect('WHITESPACE')
-        self.lexer.whitespace = False
-        if self.accept('LBRACK'):
-            index_1 = self._strip(self.lexer.lexeme)
-            self.expect('LETTER')
+        indices = []
+        if self.accept('MINUS'):
             self.expect('MINUS')
-            index_2 = self._strip(self.lexer.lexeme)
-            self.expect('LETTER')
-            indices = [chr(i) for i in range(ord(index_1), ord(index_2) + 1)]
-            self.lexer.whitespace = True
-            self.expect('RBRACK')
+            self.expect('DEFAULT')
+            indices.extend([index for index in self._property['index']])
+            self.expect('WHITESPACE')
         else:
-            indices = [self._strip(self.lexer.lexeme)]
-            self.lexer.whitespace = True
-            self.expect('LETTER')
-        self.expect('WHITESPACE')
+            while True:
+                sentence, position = self.lexer.sentence, self.lexer.mark()
+                if self.accept('LBRACK'):
+                    index_1 = self._strip(self.lexer.lexeme)
+                    self.expect('LETTER')
+                    self.expect('MINUS')
+                    index_2 = self._strip(self.lexer.lexeme)
+                    self.expect('LETTER')
+                    if len(index_1) > 1 or len(index_2) > 1:
+                        raise ParseError('unsupported index range \'%s\' at position %d' %
+                            (sentence[position:self.lexer.index], position), sentence, position)
+                    indices.extend([chr(i) for i in range(ord(index_1), ord(index_2) + 1)])
+                    self.expect('RBRACK')
+                elif self.peek('LETTER'):
+                    indices.append(self._strip(self.lexer.lexeme))
+                    self.expect('LETTER')
+                self.expect('WHITESPACE')
+                if self.peek('MINUS') or self.peek('EOL'): break
         self.expect('MINUS')
         self.expect('MINUS')
         self.expect('DIM')
         self.expect('WHITESPACE')
         dimension = self.lexer.lexeme
-        self.expect('INTEGER')
         self.lexer.whitespace = False
+        self.expect('INTEGER')
         dimension = int(dimension)
+        if self.accept('MINUS'):
+            self.expect('MINUS')
+            self.expect('DEFAULT')
+            indices = [index for index in self._property['index']]
         self._property['index'].update({index: dimension for index in indices})
 
     # <OPTION> -> <DIM> <INTEGER> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
@@ -718,7 +739,9 @@ class Parser:
         global_env['coord'] = self._property['coord']
         exec('from sympy import *', global_env)
         # evaluate every implied summation and update namespace
-        exec(LHS_RHS, global_env)
+        try: exec(LHS_RHS, global_env)
+        except IndexError:
+            raise ParseError('index out of range; change loop/summation range')
         symbol, indices = str(function.args[0]), function.args[1:]
         if any(isinstance(index, Integer) for index in indices):
             tensor = self._namespace[symbol]
@@ -1252,6 +1275,9 @@ class Parser:
                                        else ''
                                 metric = self._namespace[symbol_RHS].metric if self._namespace[symbol_RHS].metric else \
                                     self._property['metric'][diacritic] + diacritic
+                                if metric + 'DD' not in self._namespace:
+                                    raise ParseError('cannot raise/lower index for \'%s\' without defined metric at position %d' %
+                                        (symbol, position), sentence, position)
                                 indexing_LHS = indexing_RHS = [str(index) for index in indexing]
                                 idx_gen = index_count()
                                 for i, index in enumerate(indexing_LHS):
@@ -1563,7 +1589,8 @@ class Parser:
         iterable = RHS.args if RHS.func == Add else [RHS]
         LHS, RHS = Tensor(LHS).array_format(LHS), srepr(RHS)
         for element in iterable:
-            original, index_range = srepr(element), {}
+            index_range = self._property['index'].copy()
+            original = srepr(element)
             if original[0] == '-':
                 original = original[1:]
             modified = original
@@ -1620,22 +1647,24 @@ class Parser:
                 free_index_RHS.append(indexing)
             RHS = RHS.replace(original, modified)
         if impsum:
-            for i in range(len(free_index_RHS)):
-                if sorted(free_index_LHS) != sorted(free_index_RHS[i]):
-                    # raise exception upon violation of the following rule:
-                    # a free index must appear in every term with the same
-                    # position and cannot be summed over in any term
-                    set_LHS = set(idx for idx, _ in free_index_LHS)
-                    set_RHS = set(idx for idx, _ in free_index_RHS[i])
-                    raise TensorError('unbalanced free index %s in %s' % \
-                        (set_LHS.symmetric_difference(set_RHS), symbol_LHS))
+            set_LHS = set((str(idx), pos) for idx, pos in free_index_LHS)
+            set_RHS = set((str(idx), pos) for idx, pos in flatten(free_index_RHS))
+            set_diff = set_RHS.symmetric_difference(set_LHS)
+            if len(set_diff) > 0:
+                # raise exception upon violation of the following rule:
+                # a free index must appear in every term with the same
+                # position and cannot be summed over in any term
+                raise TensorError('unbalanced free indices %s in %s' % \
+                    (set(str(idx) for idx, _ in set_diff), symbol_LHS))
         else:
-            free_index_RHS = [(str(idx), pos) for idx, pos in uniquify(flatten(free_index_RHS))]
-            if sorted(free_index_LHS) != sorted(free_index_RHS):
-                set_LHS = set(idx for idx, _ in free_index_LHS)
-                set_RHS = set(idx for idx, _ in free_index_RHS)
-                raise TensorError('unbalanced index %s in %s' % \
-                    (set_LHS.symmetric_difference(set_RHS), symbol_LHS))
+            set_LHS = set(str(idx) for idx, _ in free_index_LHS)
+            set_RHS = set(str(idx) for idx, _ in flatten(free_index_RHS))
+            set_diff = set_RHS.difference(set_LHS)
+            if len(set_diff) > 0:
+                # raise exception upon violation of the following rule:
+                # every index on the RHS must appear at least once on
+                # the LHS with the noimpsum annotation applied
+                raise TensorError('unbalanced indices %s in %s' % (set_diff, symbol_LHS))
         # generate tensor instantiation with implied summation
         if symbol_LHS in self._namespace:
             equation = len(free_index_LHS) * '    ' + '%s = %s' % (LHS, RHS)

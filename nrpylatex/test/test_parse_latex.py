@@ -115,8 +115,8 @@ class TestParser(unittest.TestCase):
     def test_assignment_1(self):
         self.assertEqual(
             set(parse_latex(r"""
+                % index --default --dim 2
                 % define vU wU --dim 2 --deriv dD
-                % index [a-z] --dim 2
                 T^{ab}_c = \partial_c (v^a w^b)
             """)),
             {'vU', 'wU', 'vU_dD', 'wU_dD', 'TUUD'}
@@ -128,9 +128,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_2(self):
         self.assertEqual(
             set(parse_latex(r"""
+                % index --default --dim 2
                 % define vU --dim 2 --deriv dD
                 % define w --const
-                % index [a-z] --dim 2
                 T^a_c = % deriv dupD
                 \partial_c (v^a w)
             """)),
@@ -143,9 +143,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_3(self):
         self.assertEqual(
             set(parse_latex(r"""
+                % index --default --dim 4
                 % define gDD --dim 4 --deriv dD --metric
                 % define vU --dim 4 --deriv dD
-                % index [a-z] --dim 4
                 T^{ab} = \nabla^b v^a
             """)),
             {'gUU', 'gdet', 'epsilonUUUU', 'gDD', 'vU', 'vU_dD', 'gDD_dD', 'GammaUDD', 'vU_cdD', 'vU_cdU', 'TUU'}
@@ -155,8 +155,8 @@ class TestParser(unittest.TestCase):
         self.assertEqual(
             set(parse_latex(r"""
                 % coord [x, y]
+                % index --default --dim 2
                 % define uD wD --dim 2
-                % index [a-z] --dim 2
                 u_x = x^2 + 2x \\
                 u_y = y\sqrt{x} \\
                 v_a = u_a + w_a \\
@@ -172,9 +172,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_5(self):
         self.assertEqual(
             set(parse_latex(r"""
-                    % define vD uD wD --dim 2 --deriv dD
-                    % index [a-z] --dim 2
-                    T_{abc} = ((v_a + u_a)_{,b} - w_{a,b})_{,c}
+                % index --default --dim 2
+                % define vD uD wD --dim 2 --deriv dD
+                T_{abc} = ((v_a + u_a)_{,b} - w_{a,b})_{,c}
             """)),
             {'vD', 'uD', 'wD', 'TDDD', 'uD_dD', 'vD_dD', 'wD_dD', 'wD_dDD', 'uD_dDD', 'vD_dDD'}
         )
@@ -185,9 +185,9 @@ class TestParser(unittest.TestCase):
     def test_assignment_6(self):
         parse_latex(r"""
             % coord [\theta, \phi]
+            % index --default --dim 2
             % define gDD --dim 2 --zero
             % define r --const
-            % index [a-z] --dim 2
             % ignore "\begin{align*}" "\end{align*}"
             \begin{align*}
                 g_{0 0} &= r^2 \\
@@ -339,6 +339,7 @@ class TestParser(unittest.TestCase):
             set(parse_latex(r"""
                 % define gUU --dim 3 --metric
                 % define vD --dim 3
+                % index \mu \nu --dim 3
                 v^\mu = g^{\mu\nu} v_\nu
             """)),
             {'gUU', 'epsilonDDD', 'gdet', 'gDD', 'GammaUDD', 'vD', 'vU'}
