@@ -483,8 +483,8 @@ class Parser:
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and tensor.suffix:
                 rank = 0
-                for symbol in re.split(r'_d|_dup|_cd|_ld', symbol):
-                    for character in reversed(symbol):
+                for rank_symbol in re.split(r'_d|_dup|_cd|_ld', symbol):
+                    for character in reversed(rank_symbol):
                         if character in ('U', 'D'):
                             rank += 1
                         else: break
