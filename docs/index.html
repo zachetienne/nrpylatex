@@ -10,9 +10,8 @@
   <meta name="description" content="NRPyLaTeX Docs">
   <meta name="author" content="Kenneth Sible">
   <link rel="icon" href="imgs/favicon.ico" type="image/x-icon" />
-  <meta name="theme-color" content="#ffffff">
-  <link rel="stylesheet" href="https://imjoy-team.github.io/imjoy-docs/static/vue.css" />
-  <link rel="stylesheet" href="https://imjoy-team.github.io/imjoy-docs/static/style.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css">
+  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css"/>
 </head>
 
 <body>
@@ -21,7 +20,7 @@
     //---------------------Configuration------------------------------
     const githubUser = 'zachetienne'
     const githubRepo = 'nrpylatex'
-    const homepage = '/home.md'
+    const homepage = '/introduction.md'
     const name = 'NRPyLaTeX Docs'
     const logo = 'imgs/logo.png'
     // window.ImJoyConfig = {"imjoy_core_version": "latest"}
@@ -44,7 +43,7 @@
       homepage: homepage,
       search: {
         paths: 'auto',
-        placeholder: 'Search',
+        placeholder: 'Search Docs',
         noData: 'No Results.',
         depth: 2
       },
@@ -68,14 +67,11 @@
   <script src="https://imjoy-team.github.io/imjoy-docs/static/docsify-pagination.min.js"></script>
   <script src="https://imjoy-team.github.io/imjoy-docs/static/docsify-tabs@1.js"></script>
   <script src="https://imjoy-team.github.io/imjoy-docs/static/zoom-image.min.js"></script>
-  <script src="https://imjoy-team.github.io/imjoy-docs/static/docsify-sidebar-collapse.min.js"></script>
+  <!-- <script src="https://imjoy-team.github.io/imjoy-docs/static/docsify-sidebar-collapse.min.js"></script> -->
   <script src="https://imjoy-team.github.io/imjoy-docs/static/require.min.js"></script>
   <script src="https://imjoy-team.github.io/imjoy-docs/static/imjoy-app.js"></script>
-  <!-- Support for Katex -->
+  <script src="//cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
   <script src="//cdn.jsdelivr.net/npm/docsify-katex@latest/dist/docsify-katex.js"></script>
-  <link rel="stylesheet" href="//cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css"/>
-  <!-- Support for Code Highlighting -->
-  <!-- <script src="//unpkg.com/prismjs/components/prism-python.min.js"></script> -->
 </body>
 
 </html>
