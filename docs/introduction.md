@@ -11,7 +11,7 @@ To install **NRPyLaTeX** using [PyPI](https://pypi.org/project/nrpylatex/), run 
 
 ## Exporting (CAS)
 
-If you are using [Mathematica](https://www.wolfram.com/mathematica/) (or [Maple](https://www.maplesoft.com/products/Maple/)) instead of SymPy, run the following code to convert your output
+If you are using [Mathematica](https://www.wolfram.com/mathematica/) instead of SymPy, run the following code to convert your output
 
     from sympy import mathematica_code
     

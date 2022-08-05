@@ -1,9 +1,11 @@
-# NRPyLaTeX
+![NRPyLaTeX Logo](/docs/imgs/logo.png)
+
+---
 
 [![CI](https://github.com/zachetienne/nrpylatex/actions/workflows/main.yaml/badge.svg)](https://github.com/zachetienne/nrpylatex/actions/workflows/main.yaml)
 [![pypi version](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb)
 [![arXiv](https://img.shields.io/badge/arXiv-2111.05861-B31B1B)](https://arxiv.org/abs/2111.05861)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb)
 [![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/zachetienne/nrpylatex.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zachetienne/nrpylatex/context:python)
 
 [NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for General Relativity
@@ -12,14 +14,20 @@
   - [Einstein summation convention](https://en.wikipedia.org/wiki/Einstein_notation)
   - Levi-Civita and Christoffel symbols
   - Lie and covariant derivatives
-  - metric inverses and determinants
-- automatic index raising & lowering
+  - metric inverse and determinant
+- automatic index raising and lowering
 - arbitrary coordinate system (default)
 - exception handling and debugging
 
-## &#167; Alternate CAS (Computer Algebra System)
+## &#167; Installation
 
-If you are using Mathematica instead of SymPy,
+To install **NRPyLaTeX** using [PyPI](https://pypi.org/project/nrpylatex/), run the following command in the terminal
+
+    $ pip install nrpylatex
+
+## &#167; Exporting (CAS)
+
+If you are using Mathematica instead of SymPy, run the following code to convert your output
 
     from sympy import mathematica_code
     
@@ -29,17 +37,13 @@ If you are using Mathematica instead of SymPy,
 
 If you are using a different CAS, reference the SymPy [documentation](https://docs.sympy.org/latest/modules/printing.html) to find the relevant printing function.
 
-## &#167; Installation
-
-To install **NRPyLaTeX** using [PyPI](https://pypi.org/project/nrpylatex/), run the following command
-
-    $ pip install nrpylatex
-
 ## &#167; Interactive Tutorial (MyBinder)
 
-[Getting Started](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb) | [NRPy+ Integration](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-SymPy_LaTeX_Interface.ipynb) | [Guided Example (Cartesian BSSN)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
+[Quick Start](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb) | [NRPy+ Integration](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-SymPy_LaTeX_Interface.ipynb) | [Guided Example (BSSN Formalism)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
 
 ## &#167; Documentation and Usage
+
+[Getting Started and API Reference](https://zachetienne.github.io/nrpylatex/)
 
 ### Simple Example ([Kretschmann Scalar](https://en.wikipedia.org/wiki/Kretschmann_scalar))
 
