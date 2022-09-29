@@ -2,7 +2,7 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-from nrpylatex.core.functional import pipe, repeat, flatten, product
+from nrpylatex.core.functional import product
 import sympy as sp, re, sys
 
 def symdef(rank, symbol=None, symmetry=None, dimension=None):

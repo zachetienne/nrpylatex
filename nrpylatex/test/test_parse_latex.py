@@ -2,8 +2,7 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-# pylint: disable = import-error, protected-access, exec-used
-from nrpylatex.core.assert_equal import assert_equal
+from nrpylatex.core.assertion import assert_equal
 import nrpylatex as nl, sympy as sp, unittest
 parse_latex = lambda sentence: nl.parse_latex(sentence, reset=True, ignore_warning=True)
 

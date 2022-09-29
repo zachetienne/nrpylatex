@@ -1,5 +1,5 @@
-from nrpylatex.parse_latex import Lexer, Parser, Tensor
-from nrpylatex.parse_latex import ParseError, TensorError, OverrideWarning
-from nrpylatex.parse_latex import parse_latex
+from nrpylatex.core.scanner import Scanner, ScanError
+from nrpylatex.core.parser import Parser, Tensor, ParseError, TensorError, OverrideWarning
+from nrpylatex.parse_latex import parse_latex, ImportError
 
-__version__ = "1.2.2"
+__version__ = "1.2.3"
