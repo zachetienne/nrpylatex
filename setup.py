@@ -15,7 +15,7 @@ setup(
     author="Ken Sible",
     author_email="ksible@outlook.com",
     license="BSD License (BSD)",
-    packages=["nrpylatex", "nrpylatex.core", "nrpylatex.extension", "nrpylatex.test"],
+    packages=["nrpylatex", "nrpylatex.core", "nrpylatex.extension", "nrpylatex.tests"],
     install_requires=["sympy"],
     keywords=['General Relativity', 'LaTeX', 'CAS'],
     classifiers=[

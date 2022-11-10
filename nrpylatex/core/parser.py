@@ -154,20 +154,23 @@ class Parser:
     def _define(self):
         self.scanner.whitespace = True
         self.expect('DEFINE_MACRO')
-        self.expect('WHITESPACE')
         symbols = []
         while True:
+            self.accept('WHITESPACE')
             symbols.append(self._variable())
-            if not self.peek('EOL') :
-                self.expect('WHITESPACE')
+            self.accept('WHITESPACE')
             if self.peek('MINUS') or self.peek('EOL'): break
         dimension = suffix = symmetry = metric = weight = None
         zero = kron = const = False
         while self.accept('MINUS'):
             self.expect('MINUS')
+            self.accept('WHITESPACE')
             zero = self.accept('ZERO')
+            self.accept('WHITESPACE')
             kron = self.accept('KRON')
+            self.accept('WHITESPACE')
             const = self.accept('CONST')
+            self.accept('WHITESPACE')
             if not (zero or kron or const):
                 option, value = self._option().split('<>')
                 if option == 'dimension':
@@ -181,8 +184,7 @@ class Parser:
                     metric = value
                 elif option == 'weight':
                     weight = value
-                if not self.peek('EOL'):
-                    self.expect('WHITESPACE')
+            self.accept('WHITESPACE')
         for symbol in symbols:
             if const:
                 self._namespace[symbol] = Function('Constant')(Symbol(symbol, real=True))
@@ -201,26 +203,27 @@ class Parser:
                     self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
                     with self.scanner.new_context():
                         self.scanner.whitespace = False
-                        self.accept('WHITESPACE') or self.accept('EOL')
+                        self.accept('WHITESPACE')
+                        self.accept('EOL')
                         self.parse_latex(self._generate_metric(symbol, dimension, diacritic, suffix))
         self.scanner.whitespace = False
-        self.accept('WHITESPACE') or self.accept('EOL')
+        self.accept('WHITESPACE')
+        self.accept('EOL')
 
     # <ASSIGN> -> <ASSIGN_MACRO> { <VARIABLE> }+ { '--' <OPTION> }+
     def _assign(self):
         self.scanner.whitespace = True
         self.expect('ASSIGN_MACRO')
-        self.expect('WHITESPACE')
         symbols = []
         while True:
+            self.accept('WHITESPACE')
             symbols.append(self._variable())
-            if not self.peek('EOL') :
-                self.expect('WHITESPACE')
+            self.accept('WHITESPACE')
             if self.peek('MINUS') or self.peek('EOL'): break
         dimension = suffix = symmetry = metric = weight = None
-        while True:
+        while self.accept('MINUS'):
             self.expect('MINUS')
-            self.expect('MINUS')
+            self.accept('WHITESPACE')
             option, value = self._option().split('<>')
             if option == 'dimension':
                 dimension = int(value)
@@ -233,9 +236,7 @@ class Parser:
                 metric = value
             elif option == 'weight':
                 weight = value
-            if not self.peek('EOL') :
-                self.expect('WHITESPACE')
-            if not self.peek('MINUS'): break
+            self.accept('WHITESPACE')
         for symbol in symbols:
             if symbol not in self._namespace:
                 raise TensorError('cannot assign attribute(s) to undefined variable \'{symbol}\''.format(symbol=symbol))
@@ -272,7 +273,8 @@ class Parser:
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
                 with self.scanner.new_context():
                     self.scanner.whitespace = False
-                    self.accept('WHITESPACE') or self.accept('EOL')
+                    self.accept('WHITESPACE')
+                    self.accept('EOL')
                     self.parse_latex(self._generate_metric(symbol, tensor.dimension, diacritic, tensor.suffix))
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and tensor.suffix:
@@ -288,13 +290,12 @@ class Parser:
                     function = Function('Tensor')(Symbol(base_symbol, real=True))
                     self._define_tensor(Tensor(function, suffix=tensor.suffix))
         self.scanner.whitespace = False
-        self.accept('WHITESPACE') or self.accept('EOL')
+        self.accept('WHITESPACE')
+        self.accept('EOL')
 
     # <IGNORE> -> <IGNORE_MACRO> { <STRING> }+
     def _ignore(self):
-        self.scanner.whitespace = True
         self.expect('IGNORE_MACRO')
-        self.expect('WHITESPACE')
         while True:
             string = self.scanner.lexeme[1:-1]
             if len(string) > 0 and string not in self._property['ignore']:
@@ -302,38 +303,26 @@ class Parser:
             sentence, position = self.scanner.sentence, self.scanner.index
             self.scanner.mark()
             self.expect('STRING')
-            if not self.peek('EOL') :
-                self.expect('WHITESPACE')
             if len(string) > 0:
                 self.scanner.sentence = sentence[:position] + sentence[position:].replace(string, '')
             if not self.peek('STRING'): break
-        self.scanner.whitespace = False
-        self.accept('WHITESPACE') or self.accept('EOL')
         self.scanner.reset(); self.scanner.lex()
 
         # <SREPL> -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
     def _srepl(self):
-        self.scanner.whitespace = True
         self.expect('SREPL_MACRO')
-        self.expect('WHITESPACE')
         old = self.scanner.lexeme[1:-1]
         self.expect('STRING')
-        self.expect('WHITESPACE')
         self.expect('ARROW')
-        self.expect('WHITESPACE')
         new = self.scanner.lexeme[1:-1]
         self.scanner.mark()
         self.expect('STRING')
-        if not self.peek('EOL') :
-            self.expect('WHITESPACE')
         persist = False
         if self.accept('MINUS'):
             self.expect('MINUS')
             self.scanner.mark()
             self.expect('PERSIST')
             persist = True
-        self.scanner.whitespace = False
-        self.accept('WHITESPACE') or self.accept('EOL')
         if persist and [old, new] not in self._property['srepl']:
             self._property['srepl'].append([old, new])
         self.scanner.reset(); self.scanner.mark()
@@ -397,10 +386,7 @@ class Parser:
 
     # <COORD> -> <COORD_MACRO> ( <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> | '--' <DEFAULT> )
     def _coord(self):
-        self.scanner.whitespace = True
         self.expect('COORD_MACRO')
-        self.scanner.whitespace = False
-        self.expect('WHITESPACE')
         if self.accept('MINUS'):
             self.expect('MINUS')
             self.expect('DEFAULT')
@@ -420,15 +406,12 @@ class Parser:
 
     # <INDEX> -> <INDEX_MACRO> [ { <LETTER> | '[' <LETTER> '-' <LETTER> ']' }+ | '--' <DEFAULT> ] '--' <DIM> <INTEGER>
     def _index(self):
-        self.scanner.whitespace = True
         self.expect('INDEX_MACRO')
-        self.expect('WHITESPACE')
         indices = []
         if self.accept('MINUS'):
             self.expect('MINUS')
             self.expect('DEFAULT')
             indices.extend([index for index in self._property['index']])
-            self.expect('WHITESPACE')
         else:
             while True:
                 sentence, position = self.scanner.sentence, self.scanner.mark()
@@ -446,13 +429,10 @@ class Parser:
                 elif self.peek('LETTER'):
                     indices.append(self._strip(self.scanner.lexeme))
                     self.expect('LETTER')
-                self.expect('WHITESPACE')
-                if self.peek('MINUS') or self.peek('EOL'): break
+                if self.peek('MINUS'): break
         self.expect('MINUS')
         self.expect('MINUS')
         self.expect('DIM')
-        self.scanner.whitespace = False
-        self.expect('WHITESPACE')
         dimension = self.scanner.lexeme
         self.expect('INTEGER')
         dimension = int(dimension)
