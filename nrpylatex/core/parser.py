@@ -200,9 +200,11 @@ class Parser:
                     diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                     self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
                     with self.scanner.new_context():
+                        self.scanner.whitespace = False
+                        self.accept('WHITESPACE') or self.accept('EOL')
                         self.parse_latex(self._generate_metric(symbol, dimension, diacritic, suffix))
-        self.accept('EOL')
         self.scanner.whitespace = False
+        self.accept('WHITESPACE') or self.accept('EOL')
 
     # <ASSIGN> -> <ASSIGN_MACRO> { <VARIABLE> }+ { '--' <OPTION> }+
     def _assign(self):
@@ -269,6 +271,8 @@ class Parser:
                 diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
                 with self.scanner.new_context():
+                    self.scanner.whitespace = False
+                    self.accept('WHITESPACE') or self.accept('EOL')
                     self.parse_latex(self._generate_metric(symbol, tensor.dimension, diacritic, tensor.suffix))
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and tensor.suffix:
@@ -283,8 +287,8 @@ class Parser:
                 elif rank == 0:
                     function = Function('Tensor')(Symbol(base_symbol, real=True))
                     self._define_tensor(Tensor(function, suffix=tensor.suffix))
-        self.accept('EOL')
         self.scanner.whitespace = False
+        self.accept('WHITESPACE') or self.accept('EOL')
 
     # <IGNORE> -> <IGNORE_MACRO> { <STRING> }+
     def _ignore(self):
@@ -304,6 +308,7 @@ class Parser:
                 self.scanner.sentence = sentence[:position] + sentence[position:].replace(string, '')
             if not self.peek('STRING'): break
         self.scanner.whitespace = False
+        self.accept('WHITESPACE') or self.accept('EOL')
         self.scanner.reset(); self.scanner.lex()
 
         # <SREPL> -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
@@ -328,6 +333,7 @@ class Parser:
             self.expect('PERSIST')
             persist = True
         self.scanner.whitespace = False
+        self.accept('WHITESPACE') or self.accept('EOL')
         if persist and [old, new] not in self._property['srepl']:
             self._property['srepl'].append([old, new])
         self.scanner.reset(); self.scanner.mark()
@@ -393,8 +399,8 @@ class Parser:
     def _coord(self):
         self.scanner.whitespace = True
         self.expect('COORD_MACRO')
-        self.expect('WHITESPACE')
         self.scanner.whitespace = False
+        self.expect('WHITESPACE')
         if self.accept('MINUS'):
             self.expect('MINUS')
             self.expect('DEFAULT')
@@ -445,9 +451,9 @@ class Parser:
         self.expect('MINUS')
         self.expect('MINUS')
         self.expect('DIM')
+        self.scanner.whitespace = False
         self.expect('WHITESPACE')
         dimension = self.scanner.lexeme
-        self.scanner.whitespace = False
         self.expect('INTEGER')
         dimension = int(dimension)
         if self.accept('MINUS'):
