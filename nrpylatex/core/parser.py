@@ -490,10 +490,11 @@ class Parser:
         equation = ((Tensor.latex_format(function), sentence[position_1:position_2]), tree.root.expr)
         if self._property['debug']:
             (latex_LHS, latex_RHS), expr_RHS = equation
-            print('> LaTeX Input [%d]' % self._property['debug'])
-            print('  %s = %s' % (latex_LHS, latex_RHS.rstrip()))
-            print('< SymPy Output')
-            print('  %s = %s' % (function, expr_RHS))
+            lineno = '[%d]' % self._property['debug']
+            print('%s LaTeX Input' % lineno)
+            print('%s     %s = %s' % (len(lineno) * ' ', latex_LHS, latex_RHS.rstrip()))
+            print('%s SymPy Output' % (len(lineno) * ' '))
+            print('%s     %s = %s' % (len(lineno) * ' ', function, expr_RHS))
         if not indexed:
             for subtree in tree.preorder():
                 subexpr, rank = subtree.expr, len(subtree.expr.args)
@@ -503,8 +504,9 @@ class Parser:
         # perform implied summation on indexed expression
         LHS_RHS, dimension = self._summation(LHS, RHS, impsum=impsum)
         if self._property['debug']:
-            print('< Python Output')
-            print('  %s\n' % LHS_RHS)
+            lineno = '[%d]' % self._property['debug']
+            print('%s Python Output' % (len(lineno) * ' '))
+            print('%s     %s\n' % (len(lineno) * ' ', LHS_RHS))
             self._property['debug'] += 1
         global_env = dict(self._namespace)
         for key in global_env:
