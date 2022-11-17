@@ -44,7 +44,7 @@ class ParseMagic(Magics):
             return ParseOutput((('*' if symbol in overridden else '')
                 + str(symbol) for symbol in namespace.keys()), sentence)
 
-        except (nl.ParseError, nl.TensorError) as e:
+        except (nl.ScanError, nl.ParseError, nl.TensorError) as e:
             print(type(e).__name__ + ': ' + str(e))
 
 class ParseOutput(tuple):
