@@ -19,7 +19,7 @@ class Parser:
 
     def __init__(self, debug=False):
         self.scanner = Scanner()
-        self.state = set()
+        self.state = OrderedDict()
         if not self._property:
             self.initialize()
         self._property['debug'] = int(debug)
@@ -188,7 +188,7 @@ class Parser:
         for symbol in symbols:
             if const:
                 self._namespace[symbol] = Function('Constant')(Symbol(symbol, real=True))
-                self.state.add(symbol)
+                self.state[symbol] = None
             else:
                 function = Function('Tensor')(Symbol(symbol, real=True))
                 tensor = Tensor(function, dimension, suffix=suffix, metric=metric, weight=weight)
@@ -526,8 +526,8 @@ class Parser:
             suffix = self._namespace[symbol].suffix if symbol in self._namespace else None
             tensor = Tensor(function, dimension, structure=global_env[symbol],
                 equation=equation, suffix=suffix, impsum=impsum)
-        self._namespace.update({symbol: tensor})
-        self.state.add(symbol)
+        self._namespace[symbol] = tensor
+        self.state[symbol] = None
 
     # <EXPRESSION> -> <TERM> { ( '+' | '-' ) <TERM> }*
     def _expression(self):
@@ -1209,7 +1209,7 @@ class Parser:
             tensor.structure = Symbol(symbol, real=True) if tensor.rank == 0 \
                 else symdef(tensor.rank, symbol if not zero else None, symmetry, dimension)
         self._namespace[symbol] = tensor
-        self.state.add(symbol)
+        self.state[symbol] = None
 
     def _define_pardrv(self, function, location, suffix, index):
         if suffix is None:
