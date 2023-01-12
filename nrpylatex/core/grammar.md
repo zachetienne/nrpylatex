@@ -6,8 +6,8 @@
 <DEFINE>        -> <DEFINE_MACRO> { <VARIABLE> }+ { '--' ( <ZERO> | <KRON> | <CONST> | <OPTION> ) }*
 <ASSIGN>        -> <ASSIGN_MACRO> { <VARIABLE> }+ { '--' <OPTION> }+
 <IGNORE>        -> <IGNORE_MACRO> { <STRING> }+
-<SREPL>         -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
-<COORD>         -> <COORD_MACRO> ( <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> | '--' <DEFAULT> )
+<SREPL>         -> <SREPL_MACRO> <STRING> '->' <STRING> [ '--' <PERSIST> ]
+<COORD>         -> <COORD_MACRO> ( '[' <SYMBOL> [ ',' <SYMBOL> ]* ']' | '--' <DEFAULT> )
 <INDEX>         -> <INDEX_MACRO> [ { <LETTER> | '[' <LETTER> '-' <LETTER> ']' }+ | '--' <DEFAULT> ] '--' <DIM> <INTEGER>
 <OPTION>        -> <DIM> <INTEGER> | <SYM> <SYMMETRY> | <WEIGHT> <NUMBER> | <DERIV> <SUFFIX> | <METRIC> [ <VARIABLE> ]
 <ASSIGNMENT>    -> <OPERATOR> = <EXPRESSION> [ '\\' ] [ '%' <NOIMPSUM> ]
@@ -28,11 +28,11 @@
 <COVDRV>        -> ( <COV_SYM> | <DIACRITIC> '{' <COV_SYM> '}' ) ( '^' | '_' ) <INDEXING_2> ( <OPERATOR> | <SUBEXPR> )
 <LIEDRV>        -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
 <TENSOR>        -> <SYMBOL> [ ( '_' <INDEXING_4> ) | ( '^' <INDEXING_3> [ '_' <INDEXING_4> ] ) ]
-<SYMBOL>        -> <LETTER> | <SYMB_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}' | <DIACRITIC> '{' <SYMBOL> '}'
+<SYMBOL>        -> <LETTER> | <SYMB_CMD> '{' <VARIABLE> '}' | <DIACRITIC> '{' <SYMBOL> '}'
 <INDEXING_1>    -> <LETTER> [ '_' <INDEXING_2> ] | <INTEGER>
 <INDEXING_2>    -> <LETTER> | <INTEGER> | '{' <INDEXING_1> '}'
 <INDEXING_3>    -> <INDEXING_2> | '{' { <INDEXING_1> }+ '}'
 <INDEXING_4>    -> <INDEXING_2> | '{' ( ',' | ';' ) { <INDEXING_1> }+ | { <INDEXING_1> }+ [ ( ',' | ';' ) { <INDEXING_1> }+ ] '}'
-<VARIABLE>      -> <LETTER> { <LETTER> | <UNDERSCORE> }*
+<VARIABLE>      -> <LETTER> { [ '_' ] ( <LETTER> | <INTEGER> ) }*
 <NUMBER>        -> <RATIONAL> | <DECIMAL> | <INTEGER> | <PI>
 ```

@@ -307,7 +307,7 @@ class Parser:
             if not self.peek('STRING'): break
         self.scanner.reset(); self.scanner.lex()
 
-        # <SREPL> -> <SREPL_MACRO> <STRING> <ARROW> <STRING> [ '--' <PERSIST> ]
+    # <SREPL> -> <SREPL_MACRO> <STRING> '->' <STRING> [ '--' <PERSIST> ]
     def _srepl(self):
         self.expect('SREPL_MACRO')
         old = self.scanner.lexeme[1:-1]
@@ -383,7 +383,7 @@ class Parser:
         self.scanner.sentence = sentence
         self.scanner.reset(); self.scanner.lex()
 
-    # <COORD> -> <COORD_MACRO> ( <LBRACK> <SYMBOL> [ ',' <SYMBOL> ]* <RBRACK> | '--' <DEFAULT> )
+    # <COORD> -> <COORD_MACRO> ( '[' <SYMBOL> [ ',' <SYMBOL> ]* ']' | '--' <DEFAULT> )
     def _coord(self):
         self.expect('COORD_MACRO')
         if self.accept('MINUS'):
@@ -1091,21 +1091,16 @@ class Parser:
                 else: self._define_tensor(tensor)
         return function
 
-    # <SYMBOL> -> <LETTER> | <SYMB_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}' | <DIACRITIC> '{' <SYMBOL> '}'
+    # <SYMBOL> -> <LETTER> | <SYMB_CMD> '{' <VARIABLE> '}' | <DIACRITIC> '{' <SYMBOL> '}'
     def _symbol(self):
         lexeme = self.scanner.lexeme
         if self.accept('LETTER'):
             return lexeme
         if self.accept('SYMB_CMD'):
             self.expect('LBRACE')
-            symbol = [self.scanner.lexeme]
-            self.expect('LETTER')
-            while any(self.peek(token) for token in
-                    ('UNDERSCORE', 'LETTER', 'INTEGER')):
-                symbol.append(self.scanner.lexeme)
-                self.scanner.lex()
+            symbol = self._variable()
             self.expect('RBRACE')
-            return ''.join(symbol).replace('\\', '')
+            return symbol
         if self.accept('DIACRITIC'):
             self.expect('LBRACE')
             symbol = self._symbol() + lexeme[1:]
@@ -1178,11 +1173,11 @@ class Parser:
             return indexing, order
         return [self._indexing_2()], order
 
-    # <VARIABLE> -> <LETTER> { <LETTER> | <UNDERSCORE> }*
+    # <VARIABLE> -> <LETTER> { [ '_' ] ( <LETTER> | <INTEGER> ) }*
     def _variable(self):
         variable = self.scanner.lexeme
         self.expect('LETTER')
-        while self.peek('LETTER') or self.peek('UNDERSCORE') or self.peek('SUFFIX'):
+        while any(self.peek(token) for token in ('UNDERSCORE', 'LETTER', 'SUFFIX', 'INTEGER')):
             variable += self.scanner.lexeme
             self.scanner.lex()
         return variable
