@@ -18,7 +18,7 @@ class Scanner:
             r'\\[uU]psilon', r'\\[pP]hi', r'\\[cC]hi', r'\\[pP]si', r'\\[oO]mega', r'\\varepsilon', r'\\varkappa',
             r'\\varphi', r'\\varpi', r'\\varrho', r'\\varsigma', r'\\vartheta', r'[a-zA-Z]'))
         self.token_dict = [
-            ('EOL',             r'\r?\n'),
+            ('LINEBREAK',       r'\r?\n'),
             ('WHITESPACE',      r'\s+'),
             ('SYMMETRY',        symmetry),
             ('STRING',          r'\"[^\"]*\"'),
@@ -47,7 +47,7 @@ class Scanner:
             ('PAR_SYM',         r'\\partial'),
             ('COV_SYM',         r'\\nabla'),
             ('LIE_SYM',         r'\\mathcal\{L\}'),
-            ('TEXT_CMD',        r'\\text'),
+            ('SYMB_CMD',        r'\\mathrm|\\text'),
             ('FUNC_CMD',        r'\\exp'),
             ('FRAC_CMD',        r'\\frac'),
             ('SQRT_CMD',        r'\\sqrt'),
@@ -75,8 +75,8 @@ class Scanner:
             ('PI',              r'\\pi'),
             ('LETTER',          alphabet),
             ('COMMAND',         r'\\[a-zA-Z]+'),
-            ('RETURN',          r'\\{2}'),
-            ('ESCAPE',          r'\\')]
+            ('NEWLINE',         r'\\{2}'),
+            ('BACKSLASH',       r'\\')]
         self.regex = re.compile('|'.join(['(?P<%s>%s)' % pattern for pattern in self.token_dict]))
         self.token_dict = dict(self.token_dict)
 
@@ -104,7 +104,7 @@ class Scanner:
                 raise ScanError('unexpected \'%s\' at position %d' %
                     (self.sentence[self.index], self.index), self.sentence, self.index)
             self.index = token.end()
-            if self.whitespace or token.lastgroup not in ('WHITESPACE', 'EOL'):
+            if self.whitespace or token.lastgroup not in ('WHITESPACE', 'LINEBREAK'):
                 self.lexeme = token.group()
                 yield token.lastgroup
 
@@ -142,7 +142,7 @@ class Scanner:
     @whitespace.setter
     def whitespace(self, flag):
         if not flag:
-            while self.token in ('WHITESPACE', 'EOL'):
+            while self.token in ('WHITESPACE', 'LINEBREAK'):
                 self.lex()
         self._whitespace = flag
 

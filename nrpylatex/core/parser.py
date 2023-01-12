@@ -97,7 +97,7 @@ class Parser:
             return expression
         return {symbol: self._namespace[symbol] for symbol in self.state}
 
-    # <LATEX> -> ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) }*
+    # <LATEX> -> ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) { ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) }*
     def _latex(self):
         count = 0
         while self.scanner.lexeme:
@@ -109,7 +109,7 @@ class Parser:
             elif count > 0:
                 self._assignment()
             else:
-                if any(self.peek(token) for token in ('PAR_SYM', 'COV_SYM', 'LIE_SYM', 'DIACRITIC', 'TEXT_CMD')) \
+                if any(self.peek(token) for token in ('PAR_SYM', 'COV_SYM', 'LIE_SYM', 'DIACRITIC', 'SYMB_CMD')) \
                         or (self.peek('LETTER') and self.scanner.lexeme != 'e'):
                     marker = self.scanner.mark()
                     self._operator('LHS')
@@ -127,7 +127,6 @@ class Parser:
                             del subtree.children[:]
                     return tree.reconstruct()
             count += 1
-            if self.accept('RETURN'): pass
         return None
 
     # <MACRO> -> <DEFINE> | <ASSIGN> | <IGNORE> | <SREPL> | <COORD> | <INDEX>
@@ -159,7 +158,7 @@ class Parser:
             self.accept('WHITESPACE')
             symbols.append(self._variable())
             self.accept('WHITESPACE')
-            if self.peek('MINUS') or self.peek('EOL'): break
+            if self.peek('MINUS') or self.peek('LINEBREAK'): break
         dimension = suffix = symmetry = metric = weight = None
         zero = kron = const = False
         while self.accept('MINUS'):
@@ -204,11 +203,11 @@ class Parser:
                     with self.scanner.new_context():
                         self.scanner.whitespace = False
                         self.accept('WHITESPACE')
-                        self.accept('EOL')
+                        self.accept('LINEBREAK')
                         self.parse_latex(self._generate_metric(symbol, dimension, diacritic, suffix))
         self.scanner.whitespace = False
         self.accept('WHITESPACE')
-        self.accept('EOL')
+        self.accept('LINEBREAK')
 
     # <ASSIGN> -> <ASSIGN_MACRO> { <VARIABLE> }+ { '--' <OPTION> }+
     def _assign(self):
@@ -219,7 +218,7 @@ class Parser:
             self.accept('WHITESPACE')
             symbols.append(self._variable())
             self.accept('WHITESPACE')
-            if self.peek('MINUS') or self.peek('EOL'): break
+            if self.peek('MINUS') or self.peek('LINEBREAK'): break
         dimension = suffix = symmetry = metric = weight = None
         while self.accept('MINUS'):
             self.expect('MINUS')
@@ -274,7 +273,7 @@ class Parser:
                 with self.scanner.new_context():
                     self.scanner.whitespace = False
                     self.accept('WHITESPACE')
-                    self.accept('EOL')
+                    self.accept('LINEBREAK')
                     self.parse_latex(self._generate_metric(symbol, tensor.dimension, diacritic, tensor.suffix))
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and tensor.suffix:
@@ -291,7 +290,7 @@ class Parser:
                     self._define_tensor(Tensor(function, suffix=tensor.suffix))
         self.scanner.whitespace = False
         self.accept('WHITESPACE')
-        self.accept('EOL')
+        self.accept('LINEBREAK')
 
     # <IGNORE> -> <IGNORE_MACRO> { <STRING> }+
     def _ignore(self):
@@ -336,11 +335,11 @@ class Parser:
         sentence = self.scanner.sentence
         i_1 = i_2 = offset = 0
         for i, (index, lexeme, token) in enumerate(string_syntax):
-            if substr_syntax[0][0] == lexeme or substr_syntax[0][1] == 'GROUP' or token == 'TEXT_CMD':
+            if substr_syntax[0][0] == lexeme or substr_syntax[0][1] == 'GROUP' or token == 'SYMB_CMD':
                 k, index, varmap = i, index - len(lexeme), {}
                 for j, (_lexeme, _token) in enumerate(substr_syntax, start=i):
                     if k >= len(string_syntax): break
-                    if _token == 'LETTER' and string_syntax[k][2] == 'TEXT_CMD':
+                    if _token == 'LETTER' and string_syntax[k][2] == 'SYMB_CMD':
                         letter_1 = _lexeme[1:] if len(_lexeme) > 1 else _lexeme
                         letter_2, l = string_syntax[k + 2][1], 2
                         while string_syntax[k + l + 1][2] != 'RBRACE':
@@ -355,7 +354,7 @@ class Parser:
                             if l < len(string_syntax) and j - i + 1 < len(substr_syntax):
                                 EOL = substr_syntax[j - i + 1]
                                 while string_syntax[l][1] != EOL[0]:
-                                    if EOL[1] == 'LETTER' and string_syntax[l][2] == 'TEXT_CMD':
+                                    if EOL[1] == 'LETTER' and string_syntax[l][2] == 'SYMB_CMD':
                                         letter_1 = EOL[0][1:] if len(EOL[0]) > 1 else EOL[0]
                                         letter_2, m = string_syntax[l + 2][1], 2
                                         while string_syntax[l + m + 1][2] != 'RBRACE':
@@ -364,7 +363,7 @@ class Parser:
                                         if letter_1 == letter_2:
                                             string_syntax[l + 1] = (string_syntax[l - 1][0], EOL[0], EOL[1])
                                         else:
-                                            string += '\\text{' + letter_2 + '}'
+                                            string += '\\mathrm{' + letter_2 + '}'
                                             l += m + 1
                                     else: string += string_syntax[l][1]
                                     if l + 1 >= len(string_syntax): break
@@ -480,8 +479,8 @@ class Parser:
         self.expect('EQUAL')
         sentence, position_1 = self.scanner.sentence, self.scanner.mark()
         tree = ExprTree(self._expression())
+        self.accept('NEWLINE')
         position_2 = self.scanner.mark()
-        self.accept('RETURN')
         impsum = True
         if self.accept('COMMENT'):
             if self.accept('NOIMPSUM'):
@@ -546,15 +545,15 @@ class Parser:
         expr = self._factor()
         while any(self.peek(token) for token in ('DIVIDE',
                 'RATIONAL', 'DECIMAL', 'INTEGER', 'PI', 'PAR_SYM', 'COV_SYM', 'LIE_SYM',
-                'TEXT_CMD', 'FUNC_CMD', 'FRAC_CMD', 'SQRT_CMD', 'NLOG_CMD', 'TRIG_CMD',
-                'LPAREN', 'LBRACK', 'DIACRITIC', 'LETTER', 'COMMAND', 'COMMENT', 'ESCAPE')):
+                'SYMB_CMD', 'FUNC_CMD', 'FRAC_CMD', 'SQRT_CMD', 'NLOG_CMD', 'TRIG_CMD',
+                'LPAREN', 'LBRACK', 'DIACRITIC', 'LETTER', 'COMMAND', 'COMMENT', 'BACKSLASH')):
             self.scanner.mark()
             if self.accept('COMMENT'):
                 if not self.peek('DERIV'):
                     self.scanner.reset()
                     return expr
                 self.scanner.reset()
-            if self.accept('ESCAPE'):
+            if self.accept('BACKSLASH'):
                 if self.peek('RBRACE'):
                     self.scanner.reset()
                     return expr
@@ -579,7 +578,7 @@ class Parser:
     # <BASE> -> [ '-' ] ( <NUMBER> | <COMMAND> | <OPERATOR> | <SUBEXPR> )
     def _base(self):
         sign = -1 if self.accept('MINUS') else 1
-        if self.peek('LETTER') or self.peek('TEXT_CMD'):
+        if self.peek('LETTER') or self.peek('SYMB_CMD'):
             self.scanner.mark()
             symbol = self._strip(self._symbol())
             if symbol in ('epsilon', 'Gamma', 'D'):
@@ -618,7 +617,7 @@ class Parser:
         if any(self.peek(token) for token in
                 ('PAR_SYM', 'COV_SYM', 'LIE_SYM', 'COMMENT', 'DIACRITIC')):
             return sign * self._operator()
-        if any(self.peek(i) for i in ('LPAREN', 'LBRACK', 'ESCAPE')):
+        if any(self.peek(i) for i in ('LPAREN', 'LBRACK', 'BACKSLASH')):
             return sign * self._subexpr()
         sentence, position = self.scanner.sentence, self.scanner.mark()
         raise ParseError('unexpected \'%s\' at position %d' %
@@ -643,10 +642,10 @@ class Parser:
         elif self.accept('LBRACK'):
             expr = self._expression()
             self.expect('RBRACK')
-        elif self.accept('ESCAPE'):
+        elif self.accept('BACKSLASH'):
             self.expect('LBRACE')
             expr = self._expression()
-            self.expect('ESCAPE')
+            self.expect('BACKSLASH')
             self.expect('RBRACE')
         else:
             sentence, position = self.scanner.sentence, self.scanner.mark()
@@ -728,7 +727,7 @@ class Parser:
                 ('RATIONAL', 'DECIMAL', 'INTEGER', 'PI')):
             expr = self._number()
         elif any(self.peek(token) for token in
-                ('LETTER', 'DIACRITIC', 'TEXT_CMD')):
+                ('LETTER', 'DIACRITIC', 'SYMB_CMD')):
             expr = self._tensor()
         elif any(self.peek(i) for i in ('LPAREN', 'LBRACK', 'LBRACE')):
             expr = self._subexpr()
@@ -761,7 +760,7 @@ class Parser:
                 ('RATIONAL', 'DECIMAL', 'INTEGER', 'PI')):
             expr = self._number()
         elif any(self.peek(token) for token in
-                ('LETTER', 'DIACRITIC', 'TEXT_CMD')):
+                ('LETTER', 'DIACRITIC', 'SYMB_CMD')):
             expr = self._tensor()
         elif any(self.peek(i) for i in ('LPAREN', 'LBRACK', 'LBRACE')):
             expr = self._subexpr()
@@ -806,7 +805,7 @@ class Parser:
             liedrv = self._liedrv(location)
             self._property['suffix'] = global_suffix
             return liedrv
-        if any(self.peek(token) for token in ('LETTER', 'DIACRITIC', 'TEXT_CMD')):
+        if any(self.peek(token) for token in ('LETTER', 'DIACRITIC', 'SYMB_CMD')):
             tensor = self._tensor(location)
             self._property['suffix'] = global_suffix
             return tensor
@@ -889,7 +888,7 @@ class Parser:
             raise ParseError('cannot generate covariant derivative without defined metric \'%s\'' %
                 metric, self.scanner.sentence, position)
         if len(metric) > 1:
-            metric = '\\text{' + metric + '}'
+            metric = '\\mathrm{' + metric + '}'
         if self.accept('CARET'):
             index = (self._indexing_2(), 'U')
         elif self.accept('UNDERSCORE'):
@@ -1074,9 +1073,9 @@ class Parser:
                                         elif len(str(idx)) > 1:
                                             idx = '\\' + str(idx)
                                         if pos == 'U':
-                                            latex += '\\text{%s}^{%s %s} ' % (metric, idx, indexing_RHS[i])
+                                            latex += '\\mathrm{%s}^{%s %s} ' % (metric, idx, indexing_RHS[i])
                                         else:
-                                            latex += '\\text{%s}_{%s %s} ' % (metric, idx, indexing_RHS[i])
+                                            latex += '\\mathrm{%s}_{%s %s} ' % (metric, idx, indexing_RHS[i])
                                 latex += Tensor.latex_format(Function('Tensor')(Symbol(symbol_RHS, real=True), *indexing_RHS))
                                 suffix = self._namespace[symbol_RHS].suffix
                                 if suffix or self._namespace[symbol_RHS].metric:
@@ -1092,17 +1091,12 @@ class Parser:
                 else: self._define_tensor(tensor)
         return function
 
-    # <SYMBOL> -> <LETTER> | <DIACRITIC> '{' <SYMBOL> '}' | <TEXT_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}'
+    # <SYMBOL> -> <LETTER> | <SYMB_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}' | <DIACRITIC> '{' <SYMBOL> '}'
     def _symbol(self):
         lexeme = self.scanner.lexeme
         if self.accept('LETTER'):
             return lexeme
-        if self.accept('DIACRITIC'):
-            self.expect('LBRACE')
-            symbol = self._symbol() + lexeme[1:]
-            self.expect('RBRACE')
-            return symbol
-        if self.accept('TEXT_CMD'):
+        if self.accept('SYMB_CMD'):
             self.expect('LBRACE')
             symbol = [self.scanner.lexeme]
             self.expect('LETTER')
@@ -1112,6 +1106,11 @@ class Parser:
                 self.scanner.lex()
             self.expect('RBRACE')
             return ''.join(symbol).replace('\\', '')
+        if self.accept('DIACRITIC'):
+            self.expect('LBRACE')
+            symbol = self._symbol() + lexeme[1:]
+            self.expect('RBRACE')
+            return symbol
         sentence, position = self.scanner.sentence, self.scanner.mark()
         raise ParseError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
@@ -1240,7 +1239,8 @@ class Parser:
                     elif len(str(index)) > 1:
                         index = '\\' + str(index)
                     impsum = '' if tensor.impsum else ' % noimpsum'
-                    self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)%s' % (index, LHS.strip(), index, RHS.strip(), impsum))
+                    self.parse_latex('\\partial_{%s} %s = \\partial_{%s} (%s)%s'
+                        % (index, LHS.strip(), index, RHS.rstrip(' \n\\'), impsum))
         function = Function('Tensor')(Symbol(symbol, real=True), *indices)
         if symbol not in self._namespace:
             symmetry = 'nosym'
@@ -1485,11 +1485,11 @@ class Parser:
         if 'U' in symbol:
             prefix = r'\epsilon_{' + ' '.join('i_' + str(i) for i in range(1, 1 + dimension)) + '} ' + \
                      r'\epsilon_{' + ' '.join('j_' + str(i) for i in range(1, 1 + dimension)) + '} '
-            det_latex = prefix + ' '.join(r'\text{{{symbol}}}^{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(1, 1 + dimension))
-            inv_latex = prefix + ' '.join(r'\text{{{symbol}}}^{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(2, 1 + dimension))
+            det_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}^{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(1, 1 + dimension))
+            inv_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}^{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(2, 1 + dimension))
             latex_config += r"""
-\text{{{symbol}det}} = \frac{{1}}{{({dimension})({factorial})}} {det_latex} \\
-\text{{{symbol}}}_{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \text{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
+\mathrm{{{symbol}det}} = \frac{{1}}{{({dimension})({factorial})}} {det_latex} \\
+\mathrm{{{symbol}}}_{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \mathrm{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
                 .format(symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'), dimension=dimension,
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
             latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
@@ -1499,19 +1499,19 @@ class Parser:
         else:
             prefix = r'\epsilon^{' + ' '.join('i_' + str(i) for i in range(1, 1 + dimension)) + '} ' + \
                      r'\epsilon^{' + ' '.join('j_' + str(i) for i in range(1, 1 + dimension)) + '} '
-            det_latex = prefix + ' '.join(r'\text{{{symbol}}}_{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(1, 1 + dimension))
-            inv_latex = prefix + ' '.join(r'\text{{{symbol}}}_{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(2, 1 + dimension))
+            det_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}_{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(1, 1 + dimension))
+            inv_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}_{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(2, 1 + dimension))
             latex_config += r"""
-\text{{{symbol}det}} = \frac{{1}}{{({dimension})({factorial})}} {det_latex} \\
-\text{{{symbol}}}^{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \text{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
+\mathrm{{{symbol}det}} = \frac{{1}}{{({dimension})({factorial})}} {det_latex} \\
+\mathrm{{{symbol}}}^{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \mathrm{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
                 .format(symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'), dimension=dimension,
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
             latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
             if suffix:
                 latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
                     .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'))
-        metric = '\\text{' + re.split(r'[UD]', symbol)[0] + '}'
-        latex_config += '\n' + r'\text{{Gamma{diacritic}}}^{{i_1}}_{{i_2 i_3}} = \frac{{1}}{{2}} {metric}^{{i_1 i_4}} (\partial_{{i_2}} {metric}_{{i_3 i_4}} + \partial_{{i_3}} {metric}_{{i_4 i_2}} - \partial_{{i_4}} {metric}_{{i_2 i_3}})'.format(metric=metric, diacritic=diacritic)
+        metric = '\\mathrm{' + re.split(r'[UD]', symbol)[0] + '}'
+        latex_config += '\n' + r'\mathrm{{Gamma{diacritic}}}^{{i_1}}_{{i_2 i_3}} = \frac{{1}}{{2}} {metric}^{{i_1 i_4}} (\partial_{{i_2}} {metric}_{{i_3 i_4}} + \partial_{{i_3}} {metric}_{{i_4 i_2}} - \partial_{{i_4}} {metric}_{{i_2 i_3}})'.format(metric=metric, diacritic=diacritic)
         return latex_config
 
     @staticmethod
@@ -1544,7 +1544,7 @@ class Parser:
             elif len(str(index)) > 1:
                 index = '\\' + str(index)
             RHS += ' + ' if position == 'U' else ' - '
-            RHS += '\\%s{\\text{Gamma}}' % diacritic if diacritic else '\\text{Gamma}'
+            RHS += '\\%s{\\mathrm{Gamma}}' % diacritic if diacritic else '\\mathrm{Gamma}'
             if position == 'U':
                 RHS += '^{%s}_{%s %s} (%s)' % (index, bound_index, covdrv_index, latex)
             else:
@@ -1555,7 +1555,7 @@ class Parser:
     @staticmethod
     def _generate_liedrv(function, vector, weight=None):
         if len(str(vector)) > 1:
-            vector = '\\text{' + str(vector) + '}'
+            vector = '\\mathrm{' + str(vector) + '}'
         indexing = [str(index) for index, _ in Tensor.indexing(function)]
         idx_gen = index_count()
         for i, index in enumerate(indexing):
@@ -1588,7 +1588,7 @@ class Parser:
         return symbol[1:] if symbol[0] == '\\' else symbol
 
     def peek(self, token):
-        if self.scanner.token is None and token == 'EOL':
+        if self.scanner.token is None and token == 'LINEBREAK':
             return True
         return self.scanner.token == token
 
@@ -1727,7 +1727,7 @@ class Tensor:
             elif '_ld' in subsym:
                 vector = re.split('_ld', subsym)[-1]
                 if len(vector) > 1:
-                    vector = '\\text{' + vector + '}'
+                    vector = '\\mathrm{' + vector + '}'
                 operator += '\\mathcal{L}_' + vector + ' '
                 i_2 = i_1
         symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
@@ -1736,7 +1736,7 @@ class Tensor:
                 symbol = symbol[:len(symbol) - i]; break
         latex = [symbol, [], []]
         if len(latex[0]) > 1:
-            latex[0] = '\\text{' + str(latex[0]) + '}'
+            latex[0] = '\\mathrm{' + str(latex[0]) + '}'
         latex[0] = operator + latex[0]
         U_count, D_count = 0, 0
         for index, position in indexing:
@@ -1798,4 +1798,3 @@ class CoordinateSystem(list):
 
     def __eq__(self, other):
         return list.__eq__(self, other) and self.symbol == other.symbol
-

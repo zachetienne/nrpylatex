@@ -41,17 +41,17 @@ class TestParser(unittest.TestCase):
         function = sp.Function('Tensor')(sp.Symbol('TUU'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
             nl.Parser._generate_covdrv(function, 'beta'),
-            r'\nabla_{\beta} T^{\mu \nu} = \partial_{\beta} T^{\mu \nu} + \text{Gamma}^{\mu}_{i_1 \beta} (T^{i_1 \nu}) + \text{Gamma}^{\nu}_{i_1 \beta} (T^{\mu i_1})'
+            r'\nabla_{\beta} T^{\mu \nu} = \partial_{\beta} T^{\mu \nu} + \mathrm{Gamma}^{\mu}_{i_1 \beta} (T^{i_1 \nu}) + \mathrm{Gamma}^{\nu}_{i_1 \beta} (T^{\mu i_1})'
         )
         function = sp.Function('Tensor')(sp.Symbol('TUD'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
             nl.Parser._generate_covdrv(function, 'beta'),
-            r'\nabla_{\beta} T^{\mu}_{\nu} = \partial_{\beta} T^{\mu}_{\nu} + \text{Gamma}^{\mu}_{i_1 \beta} (T^{i_1}_{\nu}) - \text{Gamma}^{i_1}_{\nu \beta} (T^{\mu}_{i_1})'
+            r'\nabla_{\beta} T^{\mu}_{\nu} = \partial_{\beta} T^{\mu}_{\nu} + \mathrm{Gamma}^{\mu}_{i_1 \beta} (T^{i_1}_{\nu}) - \mathrm{Gamma}^{i_1}_{\nu \beta} (T^{\mu}_{i_1})'
         )
         function = sp.Function('Tensor')(sp.Symbol('TDD'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
             nl.Parser._generate_covdrv(function, 'beta'),
-            r'\nabla_{\beta} T_{\mu \nu} = \partial_{\beta} T_{\mu \nu} - \text{Gamma}^{i_1}_{\mu \beta} (T_{i_1 \nu}) - \text{Gamma}^{i_1}_{\nu \beta} (T_{\mu i_1})'
+            r'\nabla_{\beta} T_{\mu \nu} = \partial_{\beta} T_{\mu \nu} - \mathrm{Gamma}^{i_1}_{\mu \beta} (T_{i_1 \nu}) - \mathrm{Gamma}^{i_1}_{\nu \beta} (T_{\mu i_1})'
         )
 
     def test_expression_5(self):
@@ -64,38 +64,38 @@ class TestParser(unittest.TestCase):
         function = sp.Function('Tensor')(sp.Symbol('vU_cdD'), sp.Symbol('mu'), sp.Symbol('b'))
         self.assertEqual(
             nl.Parser._generate_covdrv(function, 'a'),
-            r'\nabla_{a} \nabla_{b} v^{\mu} = \partial_{a} \nabla_{b} v^{\mu} + \text{Gamma}^{\mu}_{i_1 a} (\nabla_{b} v^{i_1}) - \text{Gamma}^{i_1}_{b a} (\nabla_{i_1} v^{\mu})'
+            r'\nabla_{a} \nabla_{b} v^{\mu} = \partial_{a} \nabla_{b} v^{\mu} + \mathrm{Gamma}^{\mu}_{i_1 a} (\nabla_{b} v^{i_1}) - \mathrm{Gamma}^{i_1}_{b a} (\nabla_{i_1} v^{\mu})'
         )
 
     def test_expression_6(self):
         function = sp.Function('Tensor')(sp.Symbol('g'))
         self.assertEqual(
             nl.Parser._generate_liedrv(function, 'beta', 2),
-            r'\mathcal{L}_\text{beta} g = \text{beta}^{i_1} \partial_{i_1} g + (2)(\partial_{i_1} \text{beta}^{i_1}) g'
+            r'\mathcal{L}_\mathrm{beta} g = \mathrm{beta}^{i_1} \partial_{i_1} g + (2)(\partial_{i_1} \mathrm{beta}^{i_1}) g'
         )
         function = sp.Function('Tensor')(sp.Symbol('gUU'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
             nl.Parser._generate_liedrv(function, 'beta'),
-            r'\mathcal{L}_\text{beta} g^{i j} = \text{beta}^{i_1} \partial_{i_1} g^{i j} - (\partial_{i_1} \text{beta}^{i}) g^{i_1 j} - (\partial_{i_1} \text{beta}^{j}) g^{i i_1}'
+            r'\mathcal{L}_\mathrm{beta} g^{i j} = \mathrm{beta}^{i_1} \partial_{i_1} g^{i j} - (\partial_{i_1} \mathrm{beta}^{i}) g^{i_1 j} - (\partial_{i_1} \mathrm{beta}^{j}) g^{i i_1}'
         )
         function = sp.Function('Tensor')(sp.Symbol('gUD'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
             nl.Parser._generate_liedrv(function, 'beta'),
-            r'\mathcal{L}_\text{beta} g^{i}_{j} = \text{beta}^{i_1} \partial_{i_1} g^{i}_{j} - (\partial_{i_1} \text{beta}^{i}) g^{i_1}_{j} + (\partial_{j} \text{beta}^{i_1}) g^{i}_{i_1}'
+            r'\mathcal{L}_\mathrm{beta} g^{i}_{j} = \mathrm{beta}^{i_1} \partial_{i_1} g^{i}_{j} - (\partial_{i_1} \mathrm{beta}^{i}) g^{i_1}_{j} + (\partial_{j} \mathrm{beta}^{i_1}) g^{i}_{i_1}'
         )
         function = sp.Function('Tensor')(sp.Symbol('gDD'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
             nl.Parser._generate_liedrv(function, 'beta'),
-            r'\mathcal{L}_\text{beta} g_{i j} = \text{beta}^{i_1} \partial_{i_1} g_{i j} + (\partial_{i} \text{beta}^{i_1}) g_{i_1 j} + (\partial_{j} \text{beta}^{i_1}) g_{i i_1}'
+            r'\mathcal{L}_\mathrm{beta} g_{i j} = \mathrm{beta}^{i_1} \partial_{i_1} g_{i j} + (\partial_{i} \mathrm{beta}^{i_1}) g_{i_1 j} + (\partial_{j} \mathrm{beta}^{i_1}) g_{i i_1}'
         )
 
     def test_srepl_macro(self):
         nl.parse_latex(r"""
-            % srepl "<1>'" -> "\text{<1>prime}" --persist
-            % srepl "\text{<1..>}_<2>" -> "\text{(<1..>)<2>}" --persist
+            % srepl "<1>'" -> "\mathrm{<1>prime}" --persist
+            % srepl "\mathrm{<1..>}_<2>" -> "\mathrm{(<1..>)<2>}" --persist
             % srepl "<1>_{<2>}" -> "<1>_<2>" --persist
-            % srepl "<1>_<2>" -> "\text{<1>_<2>}" --persist
-            % srepl "\text{(<1..>)<2>}" -> "\text{<1..>_<2>}" --persist
+            % srepl "<1>_<2>" -> "\mathrm{<1>_<2>}" --persist
+            % srepl "\mathrm{(<1..>)<2>}" -> "\mathrm{<1..>_<2>}" --persist
             % srepl "<1>^{<2>}" -> "<1>^<2>" --persist
             % srepl "<1>^<2>" -> "<1>^{{<2>}}" --persist
         """)
@@ -104,7 +104,7 @@ class TestParser(unittest.TestCase):
             str(nl.parse_latex(expr)),
             "x_n**4 + xprime_n*exp(x_n*y_n**2)"
         )
-        parse_latex(r""" % srepl "<1>'^{<2..>}" -> "\text{<1>prime}" --persist """)
+        parse_latex(r""" % srepl "<1>'^{<2..>}" -> "\mathrm{<1>prime}" --persist """)
         expr = r"v'^{label}"
         self.assertEqual(
             str(nl.parse_latex(expr)),

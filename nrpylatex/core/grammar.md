@@ -1,7 +1,7 @@
 # NRPyLaTeX EBNF Grammar
 
 ```
-<LATEX>         -> ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) { [ <RETURN> ] ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) }*
+<LATEX>         -> ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) { ( '%' <MACRO> | [ '%' ] <ASSIGNMENT> ) }*
 <MACRO>         -> <DEFINE> | <ASSIGN> | <IGNORE> | <SREPL> | <COORD> | <INDEX>
 <DEFINE>        -> <DEFINE_MACRO> { <VARIABLE> }+ { '--' ( <ZERO> | <KRON> | <CONST> | <OPTION> ) }*
 <ASSIGN>        -> <ASSIGN_MACRO> { <VARIABLE> }+ { '--' <OPTION> }+
@@ -28,7 +28,7 @@
 <COVDRV>        -> ( <COV_SYM> | <DIACRITIC> '{' <COV_SYM> '}' ) ( '^' | '_' ) <INDEXING_2> ( <OPERATOR> | <SUBEXPR> )
 <LIEDRV>        -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
 <TENSOR>        -> <SYMBOL> [ ( '_' <INDEXING_4> ) | ( '^' <INDEXING_3> [ '_' <INDEXING_4> ] ) ]
-<SYMBOL>        -> <LETTER> | <DIACRITIC> '{' <SYMBOL> '}' | <TEXT_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}'
+<SYMBOL>        -> <LETTER> | <SYMB_CMD> '{' <LETTER> { '_' | <LETTER> | <INTEGER> }* '}' | <DIACRITIC> '{' <SYMBOL> '}'
 <INDEXING_1>    -> <LETTER> [ '_' <INDEXING_2> ] | <INTEGER>
 <INDEXING_2>    -> <LETTER> | <INTEGER> | '{' <INDEXING_1> '}'
 <INDEXING_3>    -> <INDEXING_2> | '{' { <INDEXING_1> }+ '}'
