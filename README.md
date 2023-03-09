@@ -6,7 +6,6 @@
 [![pypi version](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
 [![arXiv](https://img.shields.io/badge/arXiv-2111.05861-B31B1B)](https://arxiv.org/abs/2111.05861)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb)
-[![Language grade: Python](https://img.shields.io/lgtm/grade/python/g/zachetienne/nrpylatex.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/zachetienne/nrpylatex/context:python)
 
 [NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for General Relativity
 
