@@ -8,7 +8,7 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v2
       - name: install python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: install sympy (latest stable version)
@@ -22,7 +22,7 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v2
       - name: install python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: install sympy (latest stable version)
@@ -36,7 +36,7 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v2
       - name: install python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: install sympy (latest stable version)
@@ -44,13 +44,13 @@ jobs:
       - name: perform unit testing
         run: python -m unittest
   sympy_earliest-ubuntu:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - run: echo "checking out branch ${{ github.ref }} on ${{ github.repository }}."
       - name: checkout repository
         uses: actions/checkout@v2
       - name: install python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 2.7
       - name: install sympy (earliest supported version)
@@ -64,7 +64,7 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v2
       - name: install python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 3.8
       - name: install ipython
@@ -80,7 +80,7 @@ jobs:
       - name: checkout repository
         uses: actions/checkout@v2
       - name: install python
-        uses: actions/setup-python@v1
+        uses: actions/setup-python@v4
         with:
           python-version: 3.7
       - name: install sympy (latest stable version)
