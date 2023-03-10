@@ -2,23 +2,25 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow, Add
-from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
-from sympy import pi, exp, log, sqrt, expand, diff, srepr
-from nrpylatex.core.functional import uniquify, product, flatten
-from nrpylatex.core.exprtree import ExprTree
-from nrpylatex.core.indexed_symbol import symdef
 from nrpylatex.core.scanner import Scanner
+from nrpylatex.core.generator import Generator
+from nrpylatex.utils.structures import ExprTree, CoordinateSystem, symdef
+from nrpylatex.utils.structures import IndexedSymbol, IndexedSymbolError
+from nrpylatex.utils.exceptions import NRPyLaTeXError
+from nrpylatex.utils.functional import product
+from sympy import Function, Derivative, Symbol, Integer, Rational, Float, Pow
+from sympy import sin, cos, tan, sinh, cosh, tanh, asin, acos, atan, asinh, acosh, atanh
+from sympy import pi, exp, log, sqrt, expand, diff
 from collections import OrderedDict
-import warnings, math, re
+import re
 
 class Parser:
-    """ The following class will parse a tokenized LaTeX sentence. """
 
     _namespace, _property = OrderedDict(), {}
 
     def __init__(self, debug=False):
         self.scanner = Scanner()
+        self.generator = Generator(self)
         self.state = OrderedDict()
         if not self._property:
             self.initialize()
@@ -146,7 +148,7 @@ class Parser:
             self._index()
         else:
             sentence, position = self.scanner.sentence, self.scanner.mark()
-            raise ParseError('unsupported macro \'%s\' at position %d' %
+            raise ParserError('unsupported macro \'%s\' at position %d' %
                 (macro, position), sentence, position)
 
     # <DEFINE> -> <DEFINE_MACRO> { <VARIABLE> }+ { '--' ( <ZERO> | <KRON> | <CONST> | <OPTION> ) }*
@@ -190,10 +192,10 @@ class Parser:
                 self.state[symbol] = None
             else:
                 function = Function('Tensor')(Symbol(symbol, real=True))
-                tensor = Tensor(function, dimension, suffix=suffix, metric=metric, weight=weight)
+                tensor = IndexedSymbol(function, dimension, suffix=suffix, metric=metric, weight=weight)
                 if kron:
                     if tensor.rank != 2:
-                        raise TensorError('cannot instantiate Kronecker delta of rank ' + str(tensor.rank))
+                        raise IndexedSymbolError('cannot instantiate Kronecker delta of rank ' + str(tensor.rank))
                     tensor.structure = [[1 if i == j else 0 for j in range(dimension)] for i in range(dimension)]
                 tensor.symmetry = ('sym01' if symmetry in ('kron', 'metric') else symmetry)
                 self._define_tensor(tensor, zero=zero)
@@ -204,7 +206,7 @@ class Parser:
                         self.scanner.whitespace = False
                         self.accept('WHITESPACE')
                         self.accept('LINEBREAK')
-                        self.parse_latex(self._generate_metric(symbol, dimension, diacritic, suffix))
+                        self.parse_latex(Generator.generate_metric(symbol, dimension, diacritic, suffix))
         self.scanner.whitespace = False
         self.accept('WHITESPACE')
         self.accept('LINEBREAK')
@@ -238,11 +240,11 @@ class Parser:
             self.accept('WHITESPACE')
         for symbol in symbols:
             if symbol not in self._namespace:
-                raise TensorError('cannot assign attribute(s) to undefined variable \'{symbol}\''.format(symbol=symbol))
+                raise IndexedSymbolError('cannot assign attribute(s) to undefined variable \'{symbol}\''.format(symbol=symbol))
             tensor = self._namespace[symbol]
             if dimension:
                 if tensor.rank > 0:
-                    raise TensorError('cannot assign dimension to \'{symbol}\' since rank({symbol}) > 0'.format(symbol=symbol))
+                    raise IndexedSymbolError('cannot assign dimension to \'{symbol}\' since rank({symbol}) > 0'.format(symbol=symbol))
                 tensor.dimension = dimension
             if suffix:
                 tensor.suffix = suffix
@@ -254,10 +256,10 @@ class Parser:
                 tensor.weight = weight
             if symmetry == 'metric':
                 if symbol not in self._namespace:
-                    raise TensorError('cannot assign --metric to undefined variable \'{symbol}\''.format(symbol=symbol))
+                    raise IndexedSymbolError('cannot assign --metric to undefined variable \'{symbol}\''.format(symbol=symbol))
                 tensor = self._namespace[symbol]
                 if tensor.rank != 2:
-                    raise TensorError('cannot assign --metric to \'{symbol}\' since rank({symbol}) != 2'.format(symbol=symbol))
+                    raise IndexedSymbolError('cannot assign --metric to \'{symbol}\' since rank({symbol}) != 2'.format(symbol=symbol))
                 structure = tensor.structure
                 for i in range(tensor.dimension):
                     for j in range(tensor.dimension):
@@ -266,7 +268,7 @@ class Parser:
                         elif structure[j][i] == 0:
                             structure[j][i] = structure[i][j]
                         if structure[i][j] != structure[j][i]:
-                            raise TensorError('cannot assign --metric to \'{symbol}\' since {symbol}[{i}][{j}] != {symbol}[{j}][{i}]'
+                            raise IndexedSymbolError('cannot assign --metric to \'{symbol}\' since {symbol}[{i}][{j}] != {symbol}[{j}][{i}]'
                                 .format(symbol=symbol, i=i, j=j))
                 diacritic = next(diacritic for diacritic in ('bar', 'hat', 'tilde', '') if diacritic in symbol)
                 self._property['metric'][diacritic] = re.split(diacritic if diacritic else r'[UD]', symbol)[0]
@@ -274,7 +276,7 @@ class Parser:
                     self.scanner.whitespace = False
                     self.accept('WHITESPACE')
                     self.accept('LINEBREAK')
-                    self.parse_latex(self._generate_metric(symbol, tensor.dimension, diacritic, tensor.suffix))
+                    self.parse_latex(Generator.generate_metric(symbol, tensor.dimension, diacritic, tensor.suffix))
             base_symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
             if base_symbol and tensor.suffix:
                 rank = 0
@@ -287,7 +289,7 @@ class Parser:
                     self._namespace[base_symbol].suffix = tensor.suffix
                 elif rank == 0:
                     function = Function('Tensor')(Symbol(base_symbol, real=True))
-                    self._define_tensor(Tensor(function, suffix=tensor.suffix))
+                    self._define_tensor(IndexedSymbol(function, suffix=tensor.suffix))
         self.scanner.whitespace = False
         self.accept('WHITESPACE')
         self.accept('LINEBREAK')
@@ -397,7 +399,7 @@ class Parser:
                 symbol = self._strip(self._symbol())
                 if symbol in self._property['coord']:
                     sentence, position = self.scanner.sentence, self.scanner.mark()
-                    raise ParseError('duplicate coord symbol \'%s\' at position %d' %
+                    raise ParserError('duplicate coord symbol \'%s\' at position %d' %
                         (sentence[position], position), sentence, position)
                 self._property['coord'].append(Symbol(symbol, real=True))
                 if not self.accept('COMMA'): break
@@ -421,7 +423,7 @@ class Parser:
                     index_2 = self._strip(self.scanner.lexeme)
                     self.expect('LETTER')
                     if len(index_1) > 1 or len(index_2) > 1:
-                        raise ParseError('unsupported index range \'%s\' at position %d' %
+                        raise ParserError('unsupported index range \'%s\' at position %d' %
                             (sentence[position:self.scanner.index], position), sentence, position)
                     indices.extend([chr(i) for i in range(ord(index_1), ord(index_2) + 1)])
                     self.expect('RBRACK')
@@ -469,7 +471,7 @@ class Parser:
                 return 'metric<>' + metric
             return 'symmetry<>metric'
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unexpected \'%s\' at position %d' %
+        raise ParserError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
     # <ASSIGNMENT> -> <OPERATOR> = <EXPRESSION> [ '\\' ] [ '%' <NOIMPSUM> ]
@@ -486,7 +488,7 @@ class Parser:
             if self.accept('NOIMPSUM'):
                 impsum = False
             else: self.scanner.reset()
-        equation = ((Tensor.latex_format(function), sentence[position_1:position_2]), tree.root.expr)
+        equation = ((IndexedSymbol.latex_format(function), sentence[position_1:position_2]), tree.root.expr)
         if self._property['debug']:
             (latex_LHS, latex_RHS), expr_RHS = equation
             lineno = '[%d]' % self._property['debug']
@@ -500,32 +502,14 @@ class Parser:
                 if subexpr.func == Function('Tensor') and rank > 1:
                     indexed = True
         LHS, RHS = function, expand(tree.root.expr) if indexed else tree.root.expr
-        # perform implied summation on indexed expression
-        LHS_RHS, dimension = self._summation(LHS, RHS, impsum=impsum)
-        if self._property['debug']:
-            lineno = '[%d]' % self._property['debug']
-            print('%s Python Output' % (len(lineno) * ' '))
-            print('%s     %s\n' % (len(lineno) * ' ', LHS_RHS))
-            self._property['debug'] += 1
-        global_env = dict(self._namespace)
-        for key in global_env:
-            if isinstance(global_env[key], Tensor):
-                global_env[key] = global_env[key].structure
-            if isinstance(global_env[key], Function('Constant')):
-                global_env[key] = global_env[key].args[0]
-        global_env['coord'] = self._property['coord']
-        exec('from sympy import *', global_env)
-        # evaluate every implied summation and update namespace
-        try: exec(LHS_RHS, global_env)
-        except IndexError:
-            raise ParseError('index out of range; change loop/summation range')
+        global_env, dimension = self.generator.generate(LHS, RHS, impsum)
         symbol, indices = str(function.args[0]), function.args[1:]
         if any(isinstance(index, Integer) for index in indices):
             tensor = self._namespace[symbol]
             tensor.structure = global_env[symbol]
         else:
             suffix = self._namespace[symbol].suffix if symbol in self._namespace else None
-            tensor = Tensor(function, dimension, structure=global_env[symbol],
+            tensor = IndexedSymbol(function, dimension, structure=global_env[symbol],
                 equation=equation, suffix=suffix, impsum=impsum)
         self._namespace[symbol] = tensor
         self.state[symbol] = None
@@ -586,7 +570,7 @@ class Parser:
                 return sign * self._operator()
             if symbol in self._namespace:
                 variable = self._namespace[symbol]
-                if isinstance(variable, Tensor) and variable.rank > 0:
+                if isinstance(variable, IndexedSymbol) and variable.rank > 0:
                     self.scanner.reset()
                     return sign * self._operator()
             for key in self._namespace:
@@ -594,7 +578,7 @@ class Parser:
                 for i, character in enumerate(reversed(base_symbol)):
                     if character not in ('U', 'D'):
                         base_symbol = base_symbol[:len(base_symbol) - i]; break
-                if isinstance(self._namespace[key], Tensor) and symbol == base_symbol \
+                if isinstance(self._namespace[key], IndexedSymbol) and symbol == base_symbol \
                         and self._namespace[key].rank > 0:
                     self.scanner.reset()
                     return sign * self._operator()
@@ -604,7 +588,7 @@ class Parser:
                     if isinstance(self._namespace[symbol], Function('Constant')):
                         return sign * self._namespace[symbol]
                 else:
-                    self._define_tensor(Tensor(function))
+                    self._define_tensor(IndexedSymbol(function))
                 return sign * function
             self.scanner.reset()
             return sign * self._operator()
@@ -620,7 +604,7 @@ class Parser:
         if any(self.peek(i) for i in ('LPAREN', 'LBRACK', 'BACKSLASH')):
             return sign * self._subexpr()
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unexpected \'%s\' at position %d' %
+        raise ParserError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
     # <EXPONENT> -> <BASE> | '{' <EXPRESSION> '}' | '{' '{' <EXPRESSION> '}' '}'
@@ -649,7 +633,7 @@ class Parser:
             self.expect('RBRACE')
         else:
             sentence, position = self.scanner.sentence, self.scanner.mark()
-            raise ParseError('unexpected \'%s\' at position %d' %
+            raise ParserError('unexpected \'%s\' at position %d' %
                 (sentence[position], position), sentence, position)
         return expr
 
@@ -667,7 +651,7 @@ class Parser:
         if self.peek('TRIG_CMD'):
             return self._trig()
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unsupported command \'%s\' at position %d' %
+        raise ParserError('unsupported command \'%s\' at position %d' %
             (command, position), sentence, position)
 
     # <FUNC> -> <FUNC_CMD> '(' <EXPRESSION> ')'
@@ -680,7 +664,7 @@ class Parser:
         if func == 'exp':
             return exp(expr)
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unsupported function \'%s\' at position %d' %
+        raise ParserError('unsupported function \'%s\' at position %d' %
             (func, position), sentence, position)
 
     # <FRAC> -> <FRAC_CMD> '{' <EXPRESSION> '}' '{' <EXPRESSION> '}'
@@ -733,7 +717,7 @@ class Parser:
             expr = self._subexpr()
         else:
             sentence, position = self.scanner.sentence, self.scanner.mark()
-            raise ParseError('unexpected \'%s\' at position %d' %
+            raise ParserError('unexpected \'%s\' at position %d' %
                 (sentence[position], position), sentence, position)
         if func == 'ln': return log(expr)
         return log(expr, base)
@@ -766,7 +750,7 @@ class Parser:
             expr = self._subexpr()
         else:
             sentence, position = self.scanner.sentence, self.scanner.mark()
-            raise ParseError('unexpected \'%s\' at position %d' %
+            raise ParserError('unexpected \'%s\' at position %d' %
                 (sentence[position], position), sentence, position)
         if exponent == -1: return trig(expr)
         return trig(expr) ** exponent
@@ -810,7 +794,7 @@ class Parser:
             self._property['suffix'] = global_suffix
             return tensor
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unsupported operator \'%s\' at position %d' %
+        raise ParserError('unsupported operator \'%s\' at position %d' %
             (operator, position), sentence, position)
 
     # <PARDRV> -> <PAR_SYM> '_' <INDEXING_2> ( <OPERATOR> | <SUBEXPR> )
@@ -846,7 +830,7 @@ class Parser:
                         if global_suffix and suffix:
                             suffix = global_suffix
                         if not isinstance(index, Symbol) and suffix is None:
-                            raise ParseError('cannot perform numeric indexing on a symbolic derivative', sentence, position)
+                            raise ParserError('cannot perform numeric indexing on a symbolic derivative', sentence, position)
                         subtree.expr = self._define_pardrv(function, location, suffix, index)
                     del subtree.children[:]
                 elif subexpr.func == Function('Function'):
@@ -863,7 +847,7 @@ class Parser:
         if global_suffix and suffix:
             suffix = global_suffix
         if not isinstance(index, Symbol) and suffix is None:
-            raise ParseError('cannot perform numeric indexing on a symbolic derivative', sentence, position)
+            raise ParserError('cannot perform numeric indexing on a symbolic derivative', sentence, position)
         return self._define_pardrv(function, location, suffix, index)
 
     # <COVDRV> -> ( <COV_SYM> | <DIACRITIC> '{' <COV_SYM> '}' ) ( '^' | '_' ) <INDEXING_2> ( <OPERATOR> | <SUBEXPR> )
@@ -885,7 +869,7 @@ class Parser:
             else: self.expect('COV_SYM')
         metric = self._property['metric'][diacritic] + diacritic
         if metric + 'DD' not in self._namespace:
-            raise ParseError('cannot generate covariant derivative without defined metric \'%s\'' %
+            raise ParserError('cannot generate covariant derivative without defined metric \'%s\'' %
                 metric, self.scanner.sentence, position)
         if len(metric) > 1:
             metric = '\\mathrm{' + metric + '}'
@@ -895,18 +879,18 @@ class Parser:
             index = (self._indexing_2(), 'D')
         else:
             sentence, position = self.scanner.sentence, self.scanner.mark()
-            raise ParseError('unexpected \'%s\' at position %d' %
+            raise ParserError('unexpected \'%s\' at position %d' %
                 (sentence[position], position), sentence, position)
         func_list, expression = self._expand_product(location, 'cd' + diacritic, index[1], index[0])
         for symbol, function in func_list:
             if index[1] == 'U':
                 equation = [operator, ' = ', '', operator]
-                idx_gen = index_count()
+                idx_gen = IndexedSymbol.index_count()
                 indexing = [str(i) for i in function.args[1:]] + [str(index[0])]
                 for i, idx in enumerate(indexing):
                     if idx in indexing[:i]:
                         indexing[i] = next(x for x in idx_gen if x not in indexing)
-                latex = Tensor.latex_format(Function('Tensor')(function.args[0],
+                latex = IndexedSymbol.latex_format(Function('Tensor')(function.args[0],
                             *(Symbol(i) for i in indexing[:-1])))
                 covdrv_index = indexing[-1]
                 if '_' in str(covdrv_index):
@@ -930,7 +914,7 @@ class Parser:
                         config = ' % assign ' + symbol + ' --deriv dD\n'
                         self.parse_latex(''.join(equation) + config)
                     else:
-                        self.parse_latex(self._generate_covdrv(function, index[0], symbol, diacritic))
+                        self.parse_latex(Generator.generate_covdrv(function, index[0], symbol, diacritic))
         return expression
 
     # <LIEDRV> -> <LIE_SYM> '_' <SYMBOL> ( <OPERATOR> | <SUBEXPR> )
@@ -943,9 +927,9 @@ class Parser:
             if location == 'RHS' and (self._property['suffix'] or symbol not in self._namespace):
                 sentence, position = self.scanner.sentence, self.scanner.mark()
                 symbol = str(function.args[0])
-                tensor = Tensor(function, self._namespace[symbol].dimension)
+                tensor = IndexedSymbol(function, self._namespace[symbol].dimension)
                 tensor.weight = self._namespace[symbol].weight
-                self.parse_latex(self._generate_liedrv(function, vector, tensor.weight))
+                self.parse_latex(Generator.generate_liedrv(function, vector, tensor.weight))
                 self.scanner.initialize(sentence, position)
                 self.scanner.lex()
         return expression
@@ -968,7 +952,7 @@ class Parser:
                 symbol.append(suffix + order * 'D')
                 function = Function('Tensor')(Symbol(''.join(symbol)), *indexing)
                 old_latex = sentence[position:self.scanner.mark()]
-                new_latex = Tensor(function).latex_format(function)
+                new_latex = IndexedSymbol(function).latex_format(function)
                 self.scanner.sentence = sentence.replace(old_latex, new_latex)
                 self.scanner.marker = position
                 self.scanner.reset()
@@ -983,7 +967,7 @@ class Parser:
                     if symbol in self._namespace:
                         if isinstance(self._namespace[symbol], Function('Constant')):
                             return self._namespace[symbol]
-                    else: self._define_tensor(Tensor(function))
+                    else: self._define_tensor(IndexedSymbol(function))
                     return function
                 self.scanner.reset(); self.scanner.lex()
             index = self._indexing_3()
@@ -1002,7 +986,7 @@ class Parser:
                     symbol.append(suffix + order * 'D')
                     function = Function('Tensor')(Symbol(''.join(symbol)), *indexing)
                     old_latex = sentence[position:self.scanner.mark()]
-                    new_latex = Tensor(function).latex_format(function)
+                    new_latex = IndexedSymbol(function).latex_format(function)
                     self.scanner.sentence = sentence.replace(old_latex, new_latex)
                     self.scanner.marker = position
                     self.scanner.reset()
@@ -1012,7 +996,7 @@ class Parser:
             if isinstance(self._namespace[symbol], Function('Constant')):
                 return self._namespace[symbol]
         function = Function('Tensor')(Symbol(symbol, real=True), *indexing)
-        tensor = Tensor(function)
+        tensor = IndexedSymbol(function)
         if symbol not in self._namespace and location == 'RHS':
             if symbol[:7] == 'epsilon':
                 # instantiate permutation (Levi-Civita) symbol using parity
@@ -1034,7 +1018,7 @@ class Parser:
             else:
                 if tensor.rank > 0:
                     if any(suffix in symbol for suffix in ('_d', '_dup', '_cd', '_ld')):
-                        raise ParseError('cannot index undefined variable \'%s\' at position %d' %
+                        raise ParserError('cannot index undefined variable \'%s\' at position %d' %
                             (symbol, position), sentence, position)
                     i, base_symbol = len(symbol) - 1, symbol
                     while i >= 0:
@@ -1042,7 +1026,7 @@ class Parser:
                             base_symbol = base_symbol[:(i + 1)]
                             break
                         i -= 1
-                    for suffix in product(*('UD' if i == 'U' else 'DU' for _, i in Tensor.indexing(function))):
+                    for suffix in product(*('UD' if i == 'U' else 'DU' for _, i in IndexedSymbol.indexing(function))):
                         symbol_RHS = base_symbol + ''.join(suffix)
                         if symbol_RHS in self._namespace:
                             with self.scanner.new_context():
@@ -1053,17 +1037,17 @@ class Parser:
                                 metric = self._namespace[symbol_RHS].metric if self._namespace[symbol_RHS].metric else \
                                     self._property['metric'][diacritic] + diacritic
                                 if metric + 'DD' not in self._namespace:
-                                    raise ParseError('cannot raise/lower index for \'%s\' without defined metric at position %d' %
+                                    raise ParserError('cannot raise/lower index for \'%s\' without defined metric at position %d' %
                                         (symbol, position), sentence, position)
                                 indexing_LHS = indexing_RHS = [str(index) for index in indexing]
-                                idx_gen = index_count()
+                                idx_gen = IndexedSymbol.index_count()
                                 for i, index in enumerate(indexing_LHS):
                                     if index in indexing_LHS[:i]:
                                         indexing_LHS[i] = next(x for x in idx_gen if x not in indexing_LHS)
                                 function_LHS = Function('Tensor')(function.args[0],
                                     *(Symbol(i) for i in indexing_LHS))
-                                latex = Tensor.latex_format(function_LHS) + ' = '
-                                for i, (idx, pos) in enumerate(Tensor.indexing(function_LHS)):
+                                latex = IndexedSymbol.latex_format(function_LHS) + ' = '
+                                for i, (idx, pos) in enumerate(IndexedSymbol.indexing(function_LHS)):
                                     if pos != suffix[i]:
                                         indexing_RHS[i] = next(x for x in idx_gen if x not in indexing_LHS)
                                         if '_' in str(idx):
@@ -1076,7 +1060,7 @@ class Parser:
                                             latex += '\\mathrm{%s}^{%s %s} ' % (metric, idx, indexing_RHS[i])
                                         else:
                                             latex += '\\mathrm{%s}_{%s %s} ' % (metric, idx, indexing_RHS[i])
-                                latex += Tensor.latex_format(Function('Tensor')(Symbol(symbol_RHS, real=True), *indexing_RHS))
+                                latex += IndexedSymbol.latex_format(Function('Tensor')(Symbol(symbol_RHS, real=True), *indexing_RHS))
                                 suffix = self._namespace[symbol_RHS].suffix
                                 if suffix or self._namespace[symbol_RHS].metric:
                                     latex += ' % assign ' + symbol
@@ -1086,7 +1070,7 @@ class Parser:
                                         latex += ' --metric ' + metric + ' '
                                 self.parse_latex(latex)
                             return function
-                    raise ParseError('cannot index undefined variable \'%s\' at position %d' %
+                    raise ParserError('cannot index undefined variable \'%s\' at position %d' %
                         (symbol, position), sentence, position)
                 else: self._define_tensor(tensor)
         return function
@@ -1107,7 +1091,7 @@ class Parser:
             self.expect('RBRACE')
             return symbol
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unexpected \'%s\' at position %d' %
+        raise ParserError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
     # <INDEXING_1> -> <LETTER> [ '_' <INDEXING_2> ] | <INTEGER>
@@ -1121,7 +1105,7 @@ class Parser:
         elif self.accept('INTEGER'):
             return Integer(lexeme)
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unexpected \'%s\' at position %d' %
+        raise ParserError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
     # <INDEXING_2> -> <LETTER> | <INTEGER> | '{' <INDEXING_1> '}'
@@ -1138,7 +1122,7 @@ class Parser:
             self.expect('RBRACE')
             return indexing
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unexpected \'%s\' at position %d' %
+        raise ParserError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
     # <INDEXING_3> -> <INDEXING_2> | '{' { <INDEXING_1> }+ '}'
@@ -1195,7 +1179,7 @@ class Parser:
         if self.accept('PI'):
             return pi
         sentence, position = self.scanner.sentence, self.scanner.mark()
-        raise ParseError('unexpected \'%s\' at position %d' %
+        raise ParserError('unexpected \'%s\' at position %d' %
             (sentence[position], position), sentence, position)
 
     def _define_tensor(self, tensor, zero=False):
@@ -1225,7 +1209,7 @@ class Parser:
                             idx_set.update(subexpr.args[1:])
                     idx_set = {str(i) for i in idx_set}
                     if index in idx_set:
-                        idx_gen = index_count()
+                        idx_gen = IndexedSymbol.index_count()
                         index = next(x for x in idx_gen if x not in idx_set)
                     if '_' in str(index):
                         base, subscript = str(index).split('_')
@@ -1244,7 +1228,7 @@ class Parser:
                 symmetry = 'sym%d%d' % (position, position + 1)
             if tensor.symmetry and tensor.symmetry != 'nosym':
                 symmetry = tensor.symmetry + ('_' + symmetry if symmetry != 'nosym' else '')
-            self._define_tensor(Tensor(function, tensor.dimension,
+            self._define_tensor(IndexedSymbol(function, tensor.dimension,
                 symmetry=symmetry, suffix=tensor.suffix))
         return function
 
@@ -1315,270 +1299,6 @@ class Parser:
         return func_list, product
 
     @staticmethod
-    def _separate_indexing(indexing, symbol_LHS, impsum=True):
-        free_index, bound_index = [], []
-        indexing = [(str(idx), pos) for idx, pos in indexing]
-        # iterate over every unique index in the subexpression
-        for index in uniquify([idx for idx, _ in indexing]):
-            count = U = D = 0; index_tuple = []
-            # count index occurrence and position occurrence
-            for index_, position in indexing:
-                if index_ == index:
-                    index_tuple.append((index_, position))
-                    if position == 'U': U += 1
-                    if position == 'D': D += 1
-                    count += 1
-            # identify every bound index on the RHS
-            if count > 1:
-                if impsum and (count != 2 or U != D):
-                    # raise exception upon violation of the following rule:
-                    # a bound index must appear exactly once as a superscript
-                    # and exactly once as a subscript in any single term
-                    raise TensorError('illegal bound index \'%s\' in %s' % (index, symbol_LHS))
-                bound_index.append(index)
-            # identify every free index on the RHS
-            else: free_index.extend(index_tuple)
-        return uniquify(free_index), bound_index
-
-    def _summation(self, LHS, RHS, impsum=True):
-        tree, indexing = ExprTree(LHS), []
-        for subtree in tree.preorder():
-            subexpr = subtree.expr
-            if subexpr.func == Function('Tensor'):
-                for index, position in Tensor.indexing(subexpr):
-                    if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
-                        indexing.append((index, position))
-            elif subexpr.func == Derivative:
-                for index, _ in subexpr.args[1:]:
-                    if index not in self._property['coord']:
-                        if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
-                            indexing.append((index, 'D'))
-        symbol_LHS = Tensor(LHS).symbol
-        # construct a tuple list of every LHS free index
-        free_index_LHS = self._separate_indexing(indexing, symbol_LHS, impsum=impsum)[0] if impsum \
-            else uniquify([(str(idx), pos) for idx, pos in indexing])
-        # construct a tuple list of every RHS free index
-        free_index_RHS = []
-        iterable = RHS.args if RHS.func == Add else [RHS]
-        LHS, RHS = Tensor(LHS).array_format(LHS), srepr(RHS)
-        for element in iterable:
-            index_range = self._property['index'].copy()
-            original = srepr(element)
-            if original[0] == '-':
-                original = original[1:]
-            modified = original
-            indexing = []
-            tree = ExprTree(element)
-            for subtree in tree.preorder():
-                subexpr = subtree.expr
-                if subexpr.func == Function('Tensor'):
-                    symbol = str(subexpr.args[0])
-                    dimension = self._namespace[symbol].dimension
-                    for index in subexpr.args[1:]:
-                        if str(index) in self._property['index']:
-                            dimension = self._property['index'][str(index)]
-                        if str(index) in index_range and dimension != index_range[str(index)]:
-                            raise ParseError('inconsistent loop/summation range for index \'%s\'' %
-                                index, self.scanner.sentence)
-                        index_range[str(index)] = dimension
-                    function = Tensor(subexpr).array_format(subexpr)
-                    modified = modified.replace(srepr(subexpr), function)
-                    for index, position in Tensor.indexing(subexpr):
-                        if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
-                            indexing.append((index, position))
-                elif subexpr.func == Function('Constant'):
-                    constant = str(subexpr.args[0])
-                    modified = modified.replace(srepr(subexpr), constant)
-                elif subexpr.func == Derivative:
-                    argument = subexpr.args[0]
-                    derivative = 'diff(' + srepr(argument)
-                    symbol = str(argument.args[0])
-                    dimension = self._namespace[symbol].dimension
-                    for index, order in subexpr.args[1:]:
-                        if str(index) in self._property['index']:
-                            dimension = self._property['index'][str(index)]
-                        if str(index) in index_range and dimension != index_range[str(index)]:
-                            raise ParseError('inconsistent loop/summation range for index \'%s\'' %
-                                index, self.scanner.sentence)
-                        index_range[str(index)] = dimension
-                        if index not in self._property['coord']:
-                            derivative += ', (coord[%s], %s)' % (index, order)
-                            if re.match(r'[a-zA-Z]+(?:_[0-9]+)?', str(index)):
-                                indexing.append((index, 'D'))
-                        else: derivative += ', (%s, %s)' % (index, order)
-                    derivative += ')'
-                    modified = modified.replace(srepr(subexpr), derivative)
-                    tmp = srepr(subexpr).replace(srepr(argument), Tensor(argument).array_format(argument))
-                    modified = modified.replace(tmp, derivative)
-            if impsum:
-                free_index, bound_index = self._separate_indexing(indexing, symbol_LHS, impsum=impsum)
-                free_index_RHS.append(free_index)
-                # generate implied summation over every bound index
-                for idx in bound_index:
-                    modified = 'sum(%s for %s in range(%d))' % (modified, idx, index_range[idx])
-            else:
-                free_index_RHS.append(indexing)
-            RHS = RHS.replace(original, modified)
-        if impsum:
-            set_LHS = set((str(idx), pos) for idx, pos in free_index_LHS)
-            set_RHS = set((str(idx), pos) for idx, pos in flatten(free_index_RHS))
-            set_diff = set_RHS.symmetric_difference(set_LHS)
-            if len(set_diff) > 0:
-                # raise exception upon violation of the following rule:
-                # a free index must appear in every term with the same
-                # position and cannot be summed over in any term
-                raise TensorError('unbalanced free indices %s in %s' % \
-                    (set(str(idx) for idx, _ in set_diff), symbol_LHS))
-        else:
-            set_LHS = set(str(idx) for idx, _ in free_index_LHS)
-            set_RHS = set(str(idx) for idx, _ in flatten(free_index_RHS))
-            set_diff = set_RHS.difference(set_LHS)
-            if len(set_diff) > 0:
-                # raise exception upon violation of the following rule:
-                # every index on the RHS must appear at least once on
-                # the LHS with the noimpsum annotation applied
-                raise TensorError('unbalanced indices %s in %s' % (set_diff, symbol_LHS))
-        # generate tensor instantiation with implied summation
-        if symbol_LHS in self._namespace:
-            equation = len(free_index_LHS) * '    ' + '%s = %s' % (LHS, RHS)
-            for i, (idx, _) in enumerate(reversed(free_index_LHS)):
-                indent = len(free_index_LHS) - (i + 1)
-                equation = indent * '    ' + 'for %s in range(%d):\n' % (idx, index_range[idx]) + equation
-            equation = [equation]
-        else:
-            for idx, _ in reversed(free_index_LHS):
-                RHS = '[%s for %s in range(%d)]' % (RHS, idx, index_range[idx])
-            equation = [LHS.split('[')[0], RHS]
-        dimension_LHS = None
-        if free_index_LHS:
-            if len(uniquify(index_range[index] for index, _ in free_index_LHS)) > 1:
-                raise ParseError('cannot infer dimension of \'%s\'' % symbol_LHS, self.scanner.sentence)
-            index, _ = free_index_LHS[0]
-            dimension_LHS = index_range[index]
-        # shift tensor indexing forward whenever dimension > upper bound
-        for subtree in tree.preorder():
-            subexpr = subtree.expr
-            if subexpr.func == Function('Tensor'):
-                symbol = str(subexpr.args[0])
-                dimension = self._namespace[symbol].dimension
-                tensor = Tensor(subexpr, dimension)
-                indexing = Tensor.indexing(subexpr)
-                for index in subexpr.args[1:]:
-                    if str(index) in self._property['index']:
-                        upper_bound = self._property['index'][str(index)]
-                        if dimension > upper_bound:
-                            shift = dimension - upper_bound
-                            for i, (idx, pos) in enumerate(indexing):
-                                if str(idx) == str(index):
-                                    indexing[i] = ('%s + %s' % (idx, shift), pos)
-                equation[-1] = equation[-1].replace(tensor.array_format(subexpr), tensor.array_format(indexing))
-        return ' = '.join(equation), dimension_LHS
-
-    @staticmethod
-    def _generate_metric(symbol, dimension, diacritic, suffix):
-        latex_config = ''
-        if 'U' in symbol:
-            prefix = r'\epsilon_{' + ' '.join('i_' + str(i) for i in range(1, 1 + dimension)) + '} ' + \
-                     r'\epsilon_{' + ' '.join('j_' + str(i) for i in range(1, 1 + dimension)) + '} '
-            det_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}^{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(1, 1 + dimension))
-            inv_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}^{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(2, 1 + dimension))
-            latex_config += r"""
-\mathrm{{{symbol}det}} = \frac{{1}}{{({dimension})({factorial})}} {det_latex} \\
-\mathrm{{{symbol}}}_{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \mathrm{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
-                .format(symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'), dimension=dimension,
-                    factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
-            latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
-            if suffix:
-                latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
-                    .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'))
-        else:
-            prefix = r'\epsilon^{' + ' '.join('i_' + str(i) for i in range(1, 1 + dimension)) + '} ' + \
-                     r'\epsilon^{' + ' '.join('j_' + str(i) for i in range(1, 1 + dimension)) + '} '
-            det_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}_{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(1, 1 + dimension))
-            inv_latex = prefix + ' '.join(r'\mathrm{{{symbol}}}_{{i_{n} j_{n}}}'.format(symbol=symbol[:-2], n=i) for i in range(2, 1 + dimension))
-            latex_config += r"""
-\mathrm{{{symbol}det}} = \frac{{1}}{{({dimension})({factorial})}} {det_latex} \\
-\mathrm{{{symbol}}}^{{i_1 j_1}} = \frac{{1}}{{{factorial}}} \mathrm{{{symbol}det}}^{{{{-1}}}} ({inv_latex})""" \
-                .format(symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'), dimension=dimension,
-                    factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
-            latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
-            if suffix:
-                latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
-                    .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'))
-        metric = '\\mathrm{' + re.split(r'[UD]', symbol)[0] + '}'
-        latex_config += '\n' + r'\mathrm{{Gamma{diacritic}}}^{{i_1}}_{{i_2 i_3}} = \frac{{1}}{{2}} {metric}^{{i_1 i_4}} (\partial_{{i_2}} {metric}_{{i_3 i_4}} + \partial_{{i_3}} {metric}_{{i_4 i_2}} - \partial_{{i_4}} {metric}_{{i_2 i_3}})'.format(metric=metric, diacritic=diacritic)
-        return latex_config
-
-    @staticmethod
-    def _generate_covdrv(function, covdrv_index, symbol=None, diacritic=None):
-        indexing = [str(index) for index in function.args[1:]] + [str(covdrv_index)]
-        idx_gen = index_count()
-        for i, index in enumerate(indexing):
-            if index in indexing[:i]:
-                indexing[i] = next(x for x in idx_gen if x not in indexing)
-        covdrv_index = indexing[-1]
-        if '_' in str(covdrv_index):
-            base, subscript = str(covdrv_index).split('_')
-            if len(base) > 1:
-                covdrv_index = '\\%s_%s' % (base, subscript)
-        elif len(str(covdrv_index)) > 1:
-            covdrv_index = '\\' + str(covdrv_index)
-        latex = Tensor.latex_format(Function('Tensor')(function.args[0],
-            *(Symbol(i) for i in indexing[:-1])))
-        LHS = ('\\%s{\\nabla}' % diacritic if diacritic else '\\nabla') + ('_{%s} %s' % (covdrv_index, latex))
-        RHS = '\\partial_{%s} %s' % (covdrv_index, latex)
-        for index, (_, position) in zip(indexing, Tensor.indexing(function)):
-            idx_gen = index_count()
-            bound_index = next(x for x in idx_gen if x not in indexing)
-            latex = Tensor.latex_format(Function('Tensor')(function.args[0],
-                *(Symbol(bound_index) if i == index else Symbol(i) for i in indexing[:-1])))
-            if '_' in str(index):
-                base, subscript = str(index).split('_')
-                if len(base) > 1:
-                    index = '\\%s_%s' % (base, subscript)
-            elif len(str(index)) > 1:
-                index = '\\' + str(index)
-            RHS += ' + ' if position == 'U' else ' - '
-            RHS += '\\%s{\\mathrm{Gamma}}' % diacritic if diacritic else '\\mathrm{Gamma}'
-            if position == 'U':
-                RHS += '^{%s}_{%s %s} (%s)' % (index, bound_index, covdrv_index, latex)
-            else:
-                RHS += '^{%s}_{%s %s} (%s)' % (bound_index, index, covdrv_index, latex)
-        config = (' % assign ' + symbol + ' --deriv dD\n') if symbol else ''
-        return LHS + ' = ' + RHS + config
-
-    @staticmethod
-    def _generate_liedrv(function, vector, weight=None):
-        if len(str(vector)) > 1:
-            vector = '\\mathrm{' + str(vector) + '}'
-        indexing = [str(index) for index, _ in Tensor.indexing(function)]
-        idx_gen = index_count()
-        for i, index in enumerate(indexing):
-            if index in indexing[:i]:
-                indexing[i] = next(x for x in idx_gen if x not in indexing)
-        latex = Tensor.latex_format(function)
-        LHS = '\\mathcal{L}_%s %s' % (vector, latex)
-        bound_index = next(x for x in idx_gen if x not in indexing)
-        RHS = '%s^{%s} \\partial_{%s} %s' % (vector, bound_index, bound_index, latex)
-        for index, position in Tensor.indexing(function):
-            latex = Tensor.latex_format(Function('Tensor')(function.args[0],
-                *(Symbol(bound_index) if i == str(index) else Symbol(i) for i in indexing)))
-            if '_' in str(index):
-                base, subscript = str(index).split('_')
-                if len(base) > 1:
-                    index = '\\%s_%s' % (base, subscript)
-            elif len(str(index)) > 1:
-                index = '\\' + str(index)
-            if position == 'U':
-                RHS += ' - (\\partial_{%s} %s^{%s}) %s' % (bound_index, vector, index, latex)
-            else:
-                RHS += ' + (\\partial_{%s} %s^{%s}) %s' % (index, vector, bound_index, latex)
-        if weight:
-            latex = Tensor.latex_format(function)
-            RHS += ' + (%s)(\\partial_{%s} %s^{%s}) %s' % (weight, bound_index, vector, bound_index, latex)
-        return LHS + ' = ' + RHS
-
-    @staticmethod
     def _strip(symbol):
         return symbol[1:] if symbol[0] == '\\' else symbol
 
@@ -1596,200 +1316,10 @@ class Parser:
     def expect(self, token):
         if not self.accept(token):
             sentence, position = self.scanner.sentence, self.scanner.mark()
-            raise ParseError('expected token %s at position %d' %
+            raise ParserError('expected token %s at position %d' %
                 (token, position), sentence, position)
 
-def index_count():
-    n = 1
-    while True:
-        yield 'i_' + str(n)
-        n += 1
-
-class ParseError(Exception):
-    """ Invalid LaTeX Sentence """
+class ParserError(NRPyLaTeXError):
 
     def __init__(self, message, sentence=None, position=None):
-        if position is not None:
-            length = 0
-            for _, substring in enumerate(sentence.split('\n')):
-                if position - length <= len(substring):
-                    sentence = substring.lstrip()
-                    position += len(sentence) - len(substring) - length
-                    break
-                length += len(substring) + 1
-            super(ParseError, self).__init__('%s\n%s^\n' % (sentence, (12 + position) * ' ') + message)
-        else: super(ParseError, self).__init__(message)
-
-class TensorError(Exception):
-    """ Invalid Tensor Indexing or Dimension """
-
-class OverrideWarning(UserWarning):
-    """ Overridden Namespace Variable """
-
-def _formatwarning(message, category, filename=None, lineno=None, file=None, line=None):
-    return '%s: %s\n' % (category.__name__, message)
-warnings.formatwarning = _formatwarning
-warnings.simplefilter('always', OverrideWarning)
-
-class Tensor:
-    """ Tensor Structure """
-
-    def __init__(self, function, dimension=None, structure=None, equation=None,
-            symmetry=None, suffix=None, metric=None, weight=None, impsum=True):
-        self.overridden  = False
-        self.symbol      = str(function.args[0])
-        self.rank        = 0
-        for symbol in re.split(r'_d|_dup|_cd|_ld', self.symbol):
-            for character in reversed(symbol):
-                if character in ('U', 'D'):
-                    self.rank += 1
-                else: break
-        self.dimension   = dimension
-        self.structure   = structure
-        self.equation    = equation
-        self.symmetry    = symmetry
-        self.suffix      = suffix
-        self.metric      = metric
-        self.weight      = weight
-        self.impsum      = impsum
-
-    @staticmethod
-    def indexing(function):
-        """ Tensor Indexing from SymPy Function """
-        symbol, indices = function.args[0], function.args[1:]
-        i, indexing = len(indices) - 1, []
-        for symbol in reversed(re.split(r'_d|_dup|_cd|_ld', str(symbol))):
-            for character in reversed(symbol):
-                if character in ('U', 'D'):
-                    indexing.append((indices[i], character))
-                else: break
-                i -= 1
-        return list(reversed(indexing))
-
-    # TODO change method type to static (class) method
-    def array_format(self, function):
-        """ Tensor Notation for Array Formatting """
-        if isinstance(function, Function('Tensor')):
-            indexing = self.indexing(function)
-        else: indexing = function
-        if not indexing:
-            return self.symbol
-        return self.symbol + ''.join(['[' + str(index) + ']' for index, _ in indexing])
-
-    @staticmethod
-    def latex_format(function):
-        """ Tensor Notation for LaTeX Formatting """
-        symbol, indexing = str(function.args[0]), Tensor.indexing(function)
-        operator, i_2 = '', len(symbol)
-        for i_1 in range(len(symbol), 0, -1):
-            subsym = symbol[i_1:i_2]
-            if '_d' in subsym:
-                suffix = re.split('_d|_dup', subsym)[-1]
-                for _ in reversed(suffix):
-                    index = str(indexing.pop()[0])
-                    if '_' in index:
-                        base, subscript = index.split('_')
-                        if len(base) > 1:
-                            index = '\\%s_{%s}' % (base, subscript)
-                    elif len(index) > 1:
-                        index = '\\' + index
-                    operator += '\\partial_{' + index + '} '
-                i_2 = i_1
-            elif '_cd' in subsym:
-                suffix = subsym.split('_cd')[-1]
-                diacritic = 'bar'   if 'bar'   in suffix \
-                       else 'hat'   if 'hat'   in suffix \
-                       else 'tilde' if 'tilde' in suffix \
-                       else None
-                if diacritic:
-                    suffix = suffix[len(diacritic):]
-                for position in reversed(suffix):
-                    index = str(indexing.pop()[0])
-                    if '_' in index:
-                        base, subscript = index.split('_')
-                        if len(base) > 1:
-                            index = '\\%s_{%s}' % (base, subscript)
-                    elif len(index) > 1:
-                        index = '\\' + index
-                    operator += '\\' + diacritic + '{\\nabla}' if diacritic \
-                        else '\\nabla'
-                    if position == 'U':
-                        operator += '^{' + index + '}'
-                    else:
-                        operator += '_{' + index + '}'
-                    operator += ' '
-                i_2 = i_1
-            elif '_ld' in subsym:
-                vector = re.split('_ld', subsym)[-1]
-                if len(vector) > 1:
-                    vector = '\\mathrm{' + vector + '}'
-                operator += '\\mathcal{L}_' + vector + ' '
-                i_2 = i_1
-        symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
-        for i, character in enumerate(reversed(symbol)):
-            if character not in ('U', 'D'):
-                symbol = symbol[:len(symbol) - i]; break
-        latex = [symbol, [], []]
-        if len(latex[0]) > 1:
-            latex[0] = '\\mathrm{' + str(latex[0]) + '}'
-        latex[0] = operator + latex[0]
-        U_count, D_count = 0, 0
-        for index, position in indexing:
-            index = str(index)
-            if '_' in index:
-                base, subscript = index.split('_')
-                if len(base) > 1:
-                    index = '\\%s_{%s}' % (base, subscript)
-            elif len(index) > 1:
-                index = '\\' + index
-            if position == 'U':
-                latex[1].append(index)
-                U_count += 1
-            else:
-                latex[2].append(index)
-                D_count += 1
-        latex[1] = ' '.join(latex[1])
-        latex[2] = ' '.join(latex[2])
-        if U_count > 0:
-            latex[1] = '^{' + latex[1] + '}'
-        if D_count > 0:
-            latex[2] = '_{' + latex[2] + '}'
-        return ''.join(latex)
-
-    def __repr__(self):
-        symbol = ('*' if self.overridden else '') + self.symbol
-        if self.rank == 0:
-            return 'Scalar(%s)' % symbol
-        return 'Tensor(%s, %dD)' % (symbol, self.dimension)
-
-    __str__ = __repr__
-
-class CoordinateSystem(list):
-    """ Coordinate System (Default List) """
-
-    def __init__(self, symbol):
-        self.symbol = symbol
-
-    def default(self, n):
-        return Symbol('%s_%d' % (self.symbol, n), real=True)
-
-    def index(self, value):
-        pattern = re.match(self.symbol + '_([0-9][0-9]*)', str(value))
-        if pattern is not None:
-            return pattern.group(1)
-        return list.index(self, value)
-
-    def __missing__(self, index):
-        return self.default(index)
-
-    def __getitem__(self, index):
-        try:
-            return list.__getitem__(self, index)
-        except IndexError:
-            return self.__missing__(index)
-
-    def __contains__(self, key):
-        return list.__contains__(self, key) or re.match(self.symbol + '_[0-9][0-9]*', str(key))
-
-    def __eq__(self, other):
-        return list.__eq__(self, other) and self.symbol == other.symbol
+        super(ScannerError, self).__init__(message, sentence, position)

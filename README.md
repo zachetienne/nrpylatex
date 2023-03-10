@@ -1,11 +1,11 @@
-![NRPyLaTeX Logo](/docs/imgs/logo.png)
+![NRPyLaTeX Logo](http://nrpylatex.org/imgs/logo.png)
 
 ---
 
 [![CI](https://github.com/zachetienne/nrpylatex/actions/workflows/main.yaml/badge.svg)](https://github.com/zachetienne/nrpylatex/actions/workflows/main.yaml)
 [![pypi version](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
 [![arXiv](https://img.shields.io/badge/arXiv-2111.05861-B31B1B)](https://arxiv.org/abs/2111.05861)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=docs%2FNRPyLaTeX%20Tutorial.ipynb)
 
 [NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for General Relativity
 
@@ -38,7 +38,7 @@ If you are using a different CAS, reference the SymPy [documentation](https://do
 
 ## &#167; Interactive Tutorial (MyBinder)
 
-[Quick Start](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=notebook%2FNRPyLaTeX%20Tutorial.ipynb) | [NRPy+ Integration](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-SymPy_LaTeX_Interface.ipynb) | [Guided Example (BSSN Formalism)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
+[Quick Start](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=docs%2FNRPyLaTeX%20Tutorial.ipynb) | [NRPy+ Integration](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-SymPy_LaTeX_Interface.ipynb) | [Guided Example (BSSN Formalism)](https://mybinder.org/v2/gh/zachetienne/nrpytutorial/HEAD?filepath=Tutorial-LaTeX_Interface_Example-BSSN_Cartesian.ipynb)
 
 ## &#167; Documentation and Usage
 
@@ -74,7 +74,7 @@ If you are using a different CAS, reference the SymPy [documentation](https://do
 
 **IPython REPL or Jupyter Notebook**
 
-    In [1]: %load_ext nrpylatex.extension
+    In [1]: %load_ext nrpylatex
     In [2]: %%parse_latex
        ...: % ignore "\begin{align}" "\end{align}"
        ...: \begin{align}

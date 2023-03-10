@@ -1,8 +1,8 @@
-""" parse_latex.py Unit Testing """
+""" NRPyLaTeX Unit Testing """
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-from nrpylatex.core.assertion import assert_equal
+from nrpylatex.utils.assertion import assert_equal
 import nrpylatex as nl, sympy as sp, unittest
 parse_latex = lambda sentence: nl.parse_latex(sentence, reset=True, ignore_warning=True)
 
@@ -35,22 +35,22 @@ class TestParser(unittest.TestCase):
     def test_expression_4(self):
         function = sp.Function('Tensor')(sp.Symbol('T'))
         self.assertEqual(
-            nl.Parser._generate_covdrv(function, 'beta'),
+            nl.Generator.generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T = \partial_{\beta} T'
         )
         function = sp.Function('Tensor')(sp.Symbol('TUU'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
-            nl.Parser._generate_covdrv(function, 'beta'),
+            nl.Generator.generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T^{\mu \nu} = \partial_{\beta} T^{\mu \nu} + \mathrm{Gamma}^{\mu}_{i_1 \beta} (T^{i_1 \nu}) + \mathrm{Gamma}^{\nu}_{i_1 \beta} (T^{\mu i_1})'
         )
         function = sp.Function('Tensor')(sp.Symbol('TUD'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
-            nl.Parser._generate_covdrv(function, 'beta'),
+            nl.Generator.generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T^{\mu}_{\nu} = \partial_{\beta} T^{\mu}_{\nu} + \mathrm{Gamma}^{\mu}_{i_1 \beta} (T^{i_1}_{\nu}) - \mathrm{Gamma}^{i_1}_{\nu \beta} (T^{\mu}_{i_1})'
         )
         function = sp.Function('Tensor')(sp.Symbol('TDD'), sp.Symbol('mu'), sp.Symbol('nu'))
         self.assertEqual(
-            nl.Parser._generate_covdrv(function, 'beta'),
+            nl.Generator.generate_covdrv(function, 'beta'),
             r'\nabla_{\beta} T_{\mu \nu} = \partial_{\beta} T_{\mu \nu} - \mathrm{Gamma}^{i_1}_{\mu \beta} (T_{i_1 \nu}) - \mathrm{Gamma}^{i_1}_{\nu \beta} (T_{\mu i_1})'
         )
 
@@ -63,29 +63,29 @@ class TestParser(unittest.TestCase):
         """)
         function = sp.Function('Tensor')(sp.Symbol('vU_cdD'), sp.Symbol('mu'), sp.Symbol('b'))
         self.assertEqual(
-            nl.Parser._generate_covdrv(function, 'a'),
+            nl.Generator.generate_covdrv(function, 'a'),
             r'\nabla_{a} \nabla_{b} v^{\mu} = \partial_{a} \nabla_{b} v^{\mu} + \mathrm{Gamma}^{\mu}_{i_1 a} (\nabla_{b} v^{i_1}) - \mathrm{Gamma}^{i_1}_{b a} (\nabla_{i_1} v^{\mu})'
         )
 
     def test_expression_6(self):
         function = sp.Function('Tensor')(sp.Symbol('g'))
         self.assertEqual(
-            nl.Parser._generate_liedrv(function, 'beta', 2),
+            nl.Generator.generate_liedrv(function, 'beta', 2),
             r'\mathcal{L}_\mathrm{beta} g = \mathrm{beta}^{i_1} \partial_{i_1} g + (2)(\partial_{i_1} \mathrm{beta}^{i_1}) g'
         )
         function = sp.Function('Tensor')(sp.Symbol('gUU'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
-            nl.Parser._generate_liedrv(function, 'beta'),
+            nl.Generator.generate_liedrv(function, 'beta'),
             r'\mathcal{L}_\mathrm{beta} g^{i j} = \mathrm{beta}^{i_1} \partial_{i_1} g^{i j} - (\partial_{i_1} \mathrm{beta}^{i}) g^{i_1 j} - (\partial_{i_1} \mathrm{beta}^{j}) g^{i i_1}'
         )
         function = sp.Function('Tensor')(sp.Symbol('gUD'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
-            nl.Parser._generate_liedrv(function, 'beta'),
+            nl.Generator.generate_liedrv(function, 'beta'),
             r'\mathcal{L}_\mathrm{beta} g^{i}_{j} = \mathrm{beta}^{i_1} \partial_{i_1} g^{i}_{j} - (\partial_{i_1} \mathrm{beta}^{i}) g^{i_1}_{j} + (\partial_{j} \mathrm{beta}^{i_1}) g^{i}_{i_1}'
         )
         function = sp.Function('Tensor')(sp.Symbol('gDD'), sp.Symbol('i'), sp.Symbol('j'))
         self.assertEqual(
-            nl.Parser._generate_liedrv(function, 'beta'),
+            nl.Generator.generate_liedrv(function, 'beta'),
             r'\mathcal{L}_\mathrm{beta} g_{i j} = \mathrm{beta}^{i_1} \partial_{i_1} g_{i j} + (\partial_{i} \mathrm{beta}^{i_1}) g_{i_1 j} + (\partial_{j} \mathrm{beta}^{i_1}) g_{i i_1}'
         )
 

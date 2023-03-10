@@ -1,4 +1,4 @@
-""" Assert SymPy Expression Equality """
+""" SymPy Expression Equivalence """
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 

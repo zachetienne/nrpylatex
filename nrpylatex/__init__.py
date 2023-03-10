@@ -1,5 +1,11 @@
-from nrpylatex.core.scanner import Scanner, ScanError
-from nrpylatex.core.parser import Parser, Tensor, ParseError, TensorError, OverrideWarning
-from nrpylatex.parse_latex import parse_latex, ImportError
+from nrpylatex.core.scanner import Scanner, ScannerError
+from nrpylatex.core.parser import Parser, ParserError
+from nrpylatex.core.generator import Generator, GeneratorError
+from nrpylatex.utils.structures import IndexedSymbol, IndexedSymbolError
+from nrpylatex.utils.exceptions import NRPyLaTeXError, NamespaceError, OverrideWarning
+from nrpylatex.parse_latex import ParseMagic, parse_latex
 
-__version__ = "1.2.6"
+def load_ipython_extension(ipython):
+    ipython.register_magics(ParseMagic)
+
+__version__ = "1.3"

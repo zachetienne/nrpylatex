@@ -2,10 +2,10 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
+from nrpylatex.utils.exceptions import NRPyLaTeXError
 import re
 
 class Scanner:
-    """ The following class will tokenize a LaTeX sentence for parsing. """
 
     def __init__(self):
         # define a regex pattern for every token, create a named capture group for
@@ -101,7 +101,7 @@ class Scanner:
         while self.index < len(self.sentence):
             token = self.regex.match(self.sentence, self.index)
             if token is None:
-                raise ScanError('unexpected \'%s\' at position %d' %
+                raise ScannerError('unexpected \'%s\' at position %d' %
                     (self.sentence[self.index], self.index), self.sentence, self.index)
             self.index = token.end()
             if self.whitespace or token.lastgroup not in ('WHITESPACE', 'LINEBREAK'):
@@ -161,17 +161,7 @@ class Scanner:
             self.scanner.initialize(*self.state)
             self.scanner.lex()
 
-class ScanError(Exception):
-    """ Invalid LaTeX Sentence """
+class ScannerError(NRPyLaTeXError):
 
     def __init__(self, message, sentence=None, position=None):
-        if position is not None:
-            length = 0
-            for _, substring in enumerate(sentence.split('\n')):
-                if position - length <= len(substring):
-                    sentence = substring.lstrip()
-                    position += len(sentence) - len(substring) - length
-                    break
-                length += len(substring) + 1
-            super(ScanError, self).__init__('%s\n%s^\n' % (sentence, (12 + position) * ' ') + message)
-        else: super(ScanError, self).__init__(message)
+        super(ScannerError, self).__init__(message, sentence, position)

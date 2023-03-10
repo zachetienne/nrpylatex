@@ -7,7 +7,7 @@ with open('README.md') as README:
 
 setup(
     name="nrpylatex",
-    version="1.2.6",
+    version="1.3",
     description="LaTeX Interface to SymPy (CAS) for General Relativity",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -15,7 +15,7 @@ setup(
     author="Ken Sible",
     author_email="ksible@outlook.com",
     license="BSD License (BSD)",
-    packages=["nrpylatex", "nrpylatex.core", "nrpylatex.extension", "nrpylatex.tests"],
+    packages=["nrpylatex", "nrpylatex.core", "nrpylatex.utils", "nrpylatex.tests"],
     install_requires=["sympy"],
     keywords=['General Relativity', 'LaTeX', 'CAS'],
     classifiers=[
