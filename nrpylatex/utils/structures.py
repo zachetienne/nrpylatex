@@ -161,7 +161,7 @@ class IndexedSymbol:
         self.overridden  = False
         self.symbol      = str(function.args[0])
         self.rank        = 0
-        for symbol in re.split(r'_d|_dup|_cd|_ld', self.symbol):
+        for symbol in re.split(r'_d[^UD]*|_cd|_ld', self.symbol):
             for character in reversed(symbol):
                 if character in ('U', 'D'):
                     self.rank += 1
@@ -180,7 +180,7 @@ class IndexedSymbol:
         """ Symbol Indexing from SymPy Function """
         symbol, indices = function.args[0], function.args[1:]
         i, indexing = len(indices) - 1, []
-        for symbol in reversed(re.split(r'_d|_dup|_cd|_ld', str(symbol))):
+        for symbol in reversed(re.split(r'_d[^UD]*|_cd|_ld', str(symbol))):
             for character in reversed(symbol):
                 if character in ('U', 'D'):
                     indexing.append((indices[i], character))
@@ -206,7 +206,7 @@ class IndexedSymbol:
         for i_1 in range(len(symbol), 0, -1):
             subsym = symbol[i_1:i_2]
             if '_d' in subsym:
-                suffix = re.split('_d|_dup', subsym)[-1]
+                suffix = re.split(r'_d[^UD]*', subsym)[-1]
                 for _ in reversed(suffix):
                     index = str(indexing.pop()[0])
                     if '_' in index:
@@ -247,7 +247,7 @@ class IndexedSymbol:
                     vector = '\\mathrm{' + vector + '}'
                 operator += '\\mathcal{L}_' + vector + ' '
                 i_2 = i_1
-        symbol = re.split(r'_d|_dup|_cd|_ld', symbol)[0]
+        symbol = re.split(r'_d[^UD]*|_cd|_ld', symbol)[0]
         for i, character in enumerate(reversed(symbol)):
             if character not in ('U', 'D'):
                 symbol = symbol[:len(symbol) - i]; break

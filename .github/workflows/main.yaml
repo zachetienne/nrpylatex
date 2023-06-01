@@ -91,4 +91,3 @@ jobs:
         run: python -m pip install git+https://github.com/zachetienne/nrpylatex.git
       - name: change directory and perform unit testing
         run: cd nrpytutorial && python -m unittest tests.test_parse_BSSN
-        continue-on-error: true

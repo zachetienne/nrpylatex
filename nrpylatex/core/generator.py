@@ -222,7 +222,7 @@ class Generator:
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
             latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
             if suffix:
-                latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
+                latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --suffix {suffix}" \
                     .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('U', 'D'))
         else:
             prefix = r'\epsilon^{' + ' '.join('i_' + str(i) for i in range(1, 1 + dimension)) + '} ' + \
@@ -236,7 +236,7 @@ class Generator:
                     factorial=math.factorial(dimension - 1), det_latex=det_latex, inv_latex=inv_latex)
             latex_config += '\n' + r"% assign {symbol}det --dim {dimension}".format(symbol=symbol[:-2], dimension=dimension)
             if suffix:
-                latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --deriv {suffix}" \
+                latex_config += '\n' + r"% assign {symbol}det {inv_symbol} --suffix {suffix}" \
                     .format(suffix=suffix, symbol=symbol[:-2], inv_symbol=symbol.replace('D', 'U'))
         metric = '\\mathrm{' + re.split(r'[UD]', symbol)[0] + '}'
         latex_config += '\n' + r'\mathrm{{Gamma{diacritic}}}^{{i_1}}_{{i_2 i_3}} = \frac{{1}}{{2}} {metric}^{{i_1 i_4}} (\partial_{{i_2}} {metric}_{{i_3 i_4}} + \partial_{{i_3}} {metric}_{{i_4 i_2}} - \partial_{{i_4}} {metric}_{{i_2 i_3}})'.format(metric=metric, diacritic=diacritic)
@@ -277,7 +277,7 @@ class Generator:
                 RHS += '^{%s}_{%s %s} (%s)' % (index, bound_index, covdrv_index, latex)
             else:
                 RHS += '^{%s}_{%s %s} (%s)' % (bound_index, index, covdrv_index, latex)
-        config = (' % assign ' + symbol + ' --deriv dD\n') if symbol else ''
+        config = (' % assign ' + symbol + ' --suffix dD\n') if symbol else ''
         return LHS + ' = ' + RHS + config
 
     @staticmethod

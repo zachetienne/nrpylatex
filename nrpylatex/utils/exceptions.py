@@ -15,7 +15,8 @@ class NRPyLaTeXError(Exception):
                     position += len(sentence) - len(substring) - length
                     break
                 length += len(substring) + 1
-            super(NRPyLaTeXError, self).__init__('%s\n%s^\n' % (sentence, (12 + position) * ' ') + message)
+            padding = (len(self.__class__.__name__) + position + 2) * ' '
+            super(NRPyLaTeXError, self).__init__('%s\n%s^\n' % (sentence, padding) + message)
         else: super(NRPyLaTeXError, self).__init__(message)
 
 class NamespaceError(Exception):
