@@ -47,7 +47,7 @@ class Scanner:
             ('PAR_SYM',         r'\\partial'),
             ('COV_SYM',         r'\\nabla'),
             ('LIE_SYM',         r'\\mathcal\{L\}'),
-            ('SYMB_CMD',        r'\\mathrm|\\text'),
+            ('SYMB_CMD',        r'\\mathrm'),
             ('FUNC_CMD',        r'\\exp'),
             ('FRAC_CMD',        r'\\frac'),
             ('SQRT_CMD',        r'\\sqrt'),

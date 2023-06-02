@@ -56,10 +56,10 @@ If you are using a different CAS, reference the SymPy [documentation](https://do
     ...         % define gDD --dim 4 --zeros
     ...         % define G M --const
     ...         %% define Schwarzschild metric diagonal
-    ...         g_{t t} &= -\left(1-\frac{2GM}{r}\right) \\
-    ...         g_{r r} &=  \left(1-\frac{2GM}{r}\right)^{-1} \\
+    ...         g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
+    ...         g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
     ...         g_{\theta \theta} &= r^2 \\
-    ...         g_{\phi \phi} &= r^2\sin^2{\theta} \\
+    ...         g_{\phi \phi} &= r^2 \sin^2{\theta} \\
     ...         %% generate metric inverse gUU, determinant det(gDD), and connection GammaUDD
     ...         % assign gDD --metric
     ...         R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}
@@ -82,10 +82,10 @@ If you are using a different CAS, reference the SymPy [documentation](https://do
        ...:     % define gDD --dim 4 --zeros
        ...:     % define G M --const
        ...:     %% define Schwarzschild metric diagonal
-       ...:     g_{t t} &= -\left(1-\frac{2GM}{r}\right) \\
-       ...:     g_{r r} &=  \left(1-\frac{2GM}{r}\right)^{-1} \\
+       ...:     g_{t t} &= -\left(1 - \frac{2GM}{r}\right) \\
+       ...:     g_{r r} &=  \left(1 - \frac{2GM}{r}\right)^{-1} \\
        ...:     g_{\theta \theta} &= r^2 \\
-       ...:     g_{\phi \phi} &= r^2\sin^2{\theta} \\
+       ...:     g_{\phi \phi} &= r^2 \sin^2{\theta} \\
        ...:     %% generate metric inverse gUU, determinant det(gDD), and connection GammaUDD
        ...:     % assign gDD --metric
        ...:     R^\alpha{}_{\beta \mu \nu} &= \partial_\mu \Gamma^\alpha_{\beta \nu} - \partial_\nu \Gamma^\alpha_{\beta \mu}

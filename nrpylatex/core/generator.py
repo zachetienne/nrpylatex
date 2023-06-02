@@ -33,8 +33,9 @@ class Generator:
 
         # evaluate every implied summation and update namespace
         exec('from sympy import *', global_env)
-        exec(LHS_RHS, global_env)
-        # TODO
+        try: exec(LHS_RHS, global_env)
+        except IndexError:
+            raise GeneratorError('index out of range; change loop/summation range')
 
         return global_env, dimension
 
