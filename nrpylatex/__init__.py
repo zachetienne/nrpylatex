@@ -8,4 +8,4 @@ from nrpylatex.parse_latex import ParseMagic, parse_latex
 def load_ipython_extension(ipython):
     ipython.register_magics(ParseMagic)
 
-__version__ = "1.3"
+__version__ = "1.3.post1"
