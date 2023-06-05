@@ -3,21 +3,20 @@
 # Email:  ksible *at* outlook *dot* com
 
 from nrpylatex.core.parser import Parser
-from nrpylatex.utils.exceptions import NRPyLaTeXError, NamespaceError, OverrideWarning
+from nrpylatex.utils.exceptions import NRPyLaTeXError, NamespaceError
 from nrpylatex.utils.structures import IndexedSymbol
 from IPython.core.magic import Magics, magics_class, line_cell_magic
 from sympy import Function, Symbol
 from inspect import currentframe
-import warnings, re
+import re
 
-def parse_latex(sentence, reset=False, debug=False, namespace=None, ignore_warning=False):
+def parse_latex(sentence, reset=False, debug=False, namespace=None):
     """ Convert LaTeX to SymPy
 
-        :arg: latex sentence (raw string)
-        :arg: reset namespace
-        :arg: debug parse_latex()
+        :arg: latex sentence (str)
+        :arg: reset namespace (bool)
+        :arg: debug parse_latex (bool)
         :arg: import namespace (dict)
-        :arg: ignore OverrideWarning
         :return: namespace or expression
     """
     if reset: Parser.initialize(reset=True)
@@ -48,11 +47,7 @@ def parse_latex(sentence, reset=False, debug=False, namespace=None, ignore_warni
         elif isinstance(namespace[key], Function('Constant')):
             frame.f_globals[key] = namespace[key].args[0]
 
-    if ignore_warning:
-        return tuple(namespace.keys())
     overridden = [key for key in state if key in namespace]
-    if len(overridden) > 0:
-        warnings.warn('some variable(s) in the namespace were overridden', OverrideWarning)
     return tuple(('*' if symbol in overridden else '')
         + str(symbol) for symbol in namespace.keys())
 
@@ -68,14 +63,12 @@ class ParseMagic(Magics):
             line = line[match.span()[-1]:]
             match = re.match(r'\s*--([^\s]+)\s*', line)
 
-        debug = ignore_warning = False
+        debug = False
         for arg in kwargs:
             if arg == 'reset':
                 Parser.initialize(reset=True)
             elif arg == 'debug':
                 debug = True
-            elif arg == 'ignore-warning':
-                ignore_warning = True
 
         try:
             sentence = line if cell is None else cell
@@ -91,11 +84,7 @@ class ParseMagic(Magics):
                 elif isinstance(namespace[key], Function('Constant')):
                     self.shell.user_ns[key] = namespace[key].args[0]
 
-            if ignore_warning:
-                return ParseOutput(namespace.keys(), sentence)
             overridden = [key for key in state if key in namespace]
-            if len(overridden) > 0:
-                warnings.warn('some variable(s) in the namespace were overridden', OverrideWarning)
             return ParseOutput((('*' if symbol in overridden else '')
                 + str(symbol) for symbol in namespace.keys()), sentence)
 

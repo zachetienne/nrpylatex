@@ -1,8 +1,6 @@
-""" NRPyLaTeX Exceptions and Warnings """
+""" NRPyLaTeX Exceptions """
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
-
-import warnings
 
 class NRPyLaTeXError(Exception):
 
@@ -15,17 +13,10 @@ class NRPyLaTeXError(Exception):
                     position += len(sentence) - len(substring) - length
                     break
                 length += len(substring) + 1
-            padding = (len(self.__class__.__name__) + position + 2) * ' '
-            super(NRPyLaTeXError, self).__init__('%s\n%s^\n' % (sentence, padding) + message)
-        else: super(NRPyLaTeXError, self).__init__(message)
+            super(NRPyLaTeXError, self).__init__(message
+                + '\n  %s\n%s^' % (sentence, (position + 2) * ' '))
+        else:
+            super(NRPyLaTeXError, self).__init__(message)
 
 class NamespaceError(Exception):
     """ Illegal Namespace Import """
-
-class OverrideWarning(UserWarning):
-    """ Overridden Namespace Variable """
-
-def _formatwarning(message, category, filename=None, lineno=None, file=None, line=None):
-    return '%s: %s\n' % (category.__name__, message)
-warnings.formatwarning = _formatwarning
-warnings.simplefilter('always', OverrideWarning)

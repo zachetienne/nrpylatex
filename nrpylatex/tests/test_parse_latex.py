@@ -4,7 +4,7 @@
 
 from nrpylatex.utils.assertion import assert_equal
 import nrpylatex as nl, sympy as sp, unittest
-parse_latex = lambda sentence: nl.parse_latex(sentence, reset=True, ignore_warning=True)
+parse_latex = lambda sentence: nl.parse_latex(sentence, reset=True)
 
 class TestParser(unittest.TestCase):
 
@@ -402,7 +402,7 @@ class TestParser(unittest.TestCase):
                 g_{\phi \phi} &= r^2 \sin^2{\theta}
             \end{align}
             % assign gDD --metric
-        """, ignore_warning=True)
+        """)
         self.assertEqual(str(gDD[0][0]),
             '2*G*M/r - 1'
         )
@@ -428,7 +428,7 @@ class TestParser(unittest.TestCase):
                 R &= g^{\beta\nu} R_{\beta\nu} \\
                 G_{\beta\nu} &= R_{\beta\nu} - \frac{1}{2}g_{\beta\nu}R
             \end{align}
-        """, ignore_warning=True)
+        """)
         assert_equal(GammaUDD[0][0][1] - GammaUDD[0][1][0], 0, suppress_message=True)
         self.assertEqual(str(GammaUDD[0][0][1]),
             '-G*M/(r**2*(2*G*M/r - 1))'
@@ -477,7 +477,7 @@ class TestParser(unittest.TestCase):
                 K_{ij} &= \frac{1}{2\alpha}\left(\nabla_i \beta_j + \nabla_j \beta_i\right) \\
                 K &= \gamma^{ij} K_{ij}
             \end{align}
-        """, ignore_warning=True)
+        """)
         for i in range(3):
             for j in range(3):
                 assert_equal(KDD[i][j], 0, suppress_message=True)
@@ -491,7 +491,7 @@ class TestParser(unittest.TestCase):
                 E &= \frac{1}{16\pi}\left(R + K^{{2}} - K_{ij}K^{ij}\right) \\
                 p_i &= \frac{1}{8\pi}\left(D_j \gamma^{jk} K_{ki} - D_i K\right)
             \end{align}
-        """, ignore_warning=True)
+        """)
         # assert_equal(E, 0, suppress_message=True)
         self.assertEqual(sp.simplify(E), 0)
         for i in range(3):

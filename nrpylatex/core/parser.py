@@ -489,10 +489,10 @@ class Parser:
         if self._property['debug']:
             (latex_LHS, latex_RHS), expr_RHS = equation
             lineno = '[%d]' % self._property['debug']
-            print('%s LaTeX Input' % lineno)
-            print('%s     %s = %s' % (len(lineno) * ' ', latex_LHS, latex_RHS.rstrip()))
-            print('%s SymPy Output' % (len(lineno) * ' '))
-            print('%s     %s = %s' % (len(lineno) * ' ', function, expr_RHS))
+            print('%s LaTeX' % lineno)
+            print('%s   %s = %s' % (len(lineno) * ' ', latex_LHS, latex_RHS.rstrip()))
+            print('%s SymPy' % (len(lineno) * ' '))
+            print('%s   %s = %s' % (len(lineno) * ' ', function, expr_RHS))
         if not indexed:
             for subtree in tree.preorder():
                 subexpr, rank = subtree.expr, len(subtree.expr.args)

@@ -1,11 +1,11 @@
-![NRPyLaTeX Logo](http://nrpylatex.org/imgs/logo.png)
+[![NRPyLaTeX Logo](https://raw.githubusercontent.com/zachetienne/nrpylatex/main/docs/imgs/logo.png)](https://zachetienne.github.io/nrpylatex/)
 
 ---
 
 [![CI](https://github.com/zachetienne/nrpylatex/actions/workflows/main.yaml/badge.svg)](https://github.com/zachetienne/nrpylatex/actions/workflows/main.yaml)
-[![pypi version](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
-[![arXiv](https://img.shields.io/badge/arXiv-2111.05861-B31B1B)](https://arxiv.org/abs/2111.05861)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/zachetienne/nrpylatex.git/HEAD?filepath=docs%2FNRPyLaTeX%20Tutorial.ipynb)
+[![PyPI](https://img.shields.io/pypi/v/nrpylatex.svg)](https://pypi.org/project/nrpylatex/)
+[![arXiv](https://img.shields.io/badge/arXiv-2111.05861-B31B1B)](https://arxiv.org/abs/2111.05861)
 
 [NRPy+](https://github.com/zachetienne/nrpytutorial)'s LaTeX Interface to SymPy (CAS) for General Relativity
 

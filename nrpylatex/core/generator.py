@@ -19,8 +19,8 @@ class Generator:
         LHS_RHS, dimension = self.expand_summation(LHS, RHS, impsum)
         if self._property['debug']:
             lineno = '[%d]' % self._property['debug']
-            print('%s Python Output' % (len(lineno) * ' '))
-            print('%s     %s\n' % (len(lineno) * ' ', LHS_RHS))
+            print('%s Python' % (len(lineno) * ' '))
+            print('%s   %s\n' % (len(lineno) * ' ', LHS_RHS))
             self._property['debug'] += 1
 
         global_env = dict(self._namespace)
@@ -124,24 +124,23 @@ class Generator:
             RHS = RHS.replace(original, modified)
 
         if impsum:
-            set_LHS = set((str(idx), pos) for idx, pos in free_index_LHS)
-            set_RHS = set((str(idx), pos) for idx, pos in flatten(free_index_RHS))
-            set_diff = set_RHS.symmetric_difference(set_LHS)
-            if len(set_diff) > 0:
-                # raise exception upon violation of the following rule:
-                # a free index must appear in every term with the same
-                # position and cannot be summed over in any term
-                raise GeneratorError('unbalanced free indices %s in %s' % \
-                    (set(str(idx) for idx, _ in set_diff), symbol_LHS))
+            unique_LHS = uniquify([(str(idx), pos) for idx, pos in free_index_LHS])
+            unique_RHS = uniquify([(str(idx), pos) for idx, pos in flatten(free_index_RHS)])
+            for idx, pos in unique_LHS + unique_RHS:
+                if ((idx, pos) in unique_LHS) != ((idx, pos) in unique_RHS):
+                    # raise exception upon violation of the following rule:
+                    # a free index must appear in every term with the same
+                    # position and cannot be summed over in any term
+                    raise GeneratorError('unbalanced free index \'%s\' in %s' % (idx, symbol_LHS))
         else:
-            set_LHS = set(str(idx) for idx, _ in free_index_LHS)
-            set_RHS = set(str(idx) for idx, _ in flatten(free_index_RHS))
-            set_diff = set_RHS.difference(set_LHS)
-            if len(set_diff) > 0:
-                # raise exception upon violation of the following rule:
-                # every index on the RHS must appear at least once on
-                # the LHS with the noimpsum annotation applied
-                raise GeneratorError('unbalanced indices %s in %s' % (set_diff, symbol_LHS))
+            unique_LHS = uniquify([str(idx) for idx, _ in free_index_LHS])
+            unique_RHS = uniquify([str(idx) for idx, _ in flatten(free_index_RHS)])
+            for idx in unique_RHS:
+                if idx not in unique_LHS:
+                    # raise exception upon violation of the following rule:
+                    # every index on the RHS must appear at least once on
+                    # the LHS with the noimpsum annotation applied
+                    raise GeneratorError('unbalanced index \'%s\' in %s' % (idx, symbol_LHS))
 
         # generate tensor instantiation with implied summation
         if symbol_LHS in self._namespace:
