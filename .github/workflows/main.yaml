@@ -10,7 +10,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.6
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: perform unit testing
@@ -24,7 +24,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.6
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: perform unit testing
@@ -38,13 +38,13 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.6
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: perform unit testing
         run: python -m unittest
   sympy_earliest-ubuntu:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - run: echo "checking out branch ${{ github.ref }} on ${{ github.repository }}."
       - name: checkout repository
@@ -52,9 +52,9 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 2.7
+          python-version: 3.6
       - name: install sympy (earliest supported version)
-        run: python -m pip install ipython mpmath==0.19 sympy==1.3
+        run: python -m pip install ipython sympy==1.2
       - name: perform unit testing
         run: python -m unittest nrpylatex.tests.test_parse_latex
   sympy_development-ubuntu:
@@ -82,7 +82,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.7
+          python-version: 3.6
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: clone nrpytutorial repository
