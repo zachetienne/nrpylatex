@@ -10,7 +10,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.6
+          python-version: 3.7
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: perform unit testing
@@ -24,7 +24,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.6
+          python-version: 3.7
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: perform unit testing
@@ -38,13 +38,13 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.6
+          python-version: 3.7
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: perform unit testing
         run: python -m unittest
   sympy_earliest-ubuntu:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - run: echo "checking out branch ${{ github.ref }} on ${{ github.repository }}."
       - name: checkout repository
@@ -66,7 +66,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.8
+          python-version: 3.7
       - name: install ipython
         run: python -m pip install ipython
       - name: install sympy (latest development version)
@@ -82,7 +82,7 @@ jobs:
       - name: install python
         uses: actions/setup-python@v4
         with:
-          python-version: 3.6
+          python-version: 3.7
       - name: install sympy (latest stable version)
         run: python -m pip install ipython sympy
       - name: clone nrpytutorial repository
