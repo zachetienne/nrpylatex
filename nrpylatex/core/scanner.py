@@ -2,8 +2,8 @@
 # Author: Ken Sible
 # Email:  ksible *at* outlook *dot* com
 
-from nrpylatex.utils.exceptions import NRPyLaTeXError
-import re
+from nrpylatex.utils.exceptions import DeprecatedWarning, NRPyLaTeXError
+import warnings, re
 
 class Scanner:
 
@@ -17,6 +17,7 @@ class Scanner:
             r'\\[mM]u', r'\\[nN]u', r'\\[xX]i', r'\\[oO]mikron', r'\\[pP]i', r'\\[Rr]ho', r'\\[sS]igma', r'\\[tT]au',
             r'\\[uU]psilon', r'\\[pP]hi', r'\\[cC]hi', r'\\[pP]si', r'\\[oO]mega', r'\\varepsilon', r'\\varkappa',
             r'\\varphi', r'\\varpi', r'\\varrho', r'\\varsigma', r'\\vartheta', r'[a-zA-Z]'))
+        self.deprecated = [('\\text', '\\mathrm')]
         self.token_dict = [
             ('LINEBREAK',       r'\r?\n'),
             ('WHITESPACE',      r'\s+'),
@@ -84,6 +85,11 @@ class Scanner:
             :arg: sentence (raw string)
             :arg: position
         """
+        for feature, replacement in self.deprecated:
+            if feature in sentence:
+                warnings.warn(feature + ' is deprecated.', DeprecatedWarning)
+            sentence = sentence.replace(feature, replacement)
+
         self.sentence = sentence
         self.token    = None
         self.lexeme   = None

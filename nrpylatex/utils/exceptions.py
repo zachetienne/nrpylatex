@@ -20,3 +20,6 @@ class NRPyLaTeXError(Exception):
 
 class NamespaceError(Exception):
     """ Illegal Namespace Import """
+
+class DeprecatedWarning(Warning):
+    """ Use of Deprecated Feature """
